@@ -285,6 +285,18 @@ backend:
           agent: "testing"
           comment: "Platform stats endpoint working correctly. Returns real-time data for active games and online players, plus mock data for daily stats. Response time: 0.045s"
 
+  - task: "Food Respawn Rate Fix"
+    implemented: true
+    working: "unknown"
+    file: "backend/game_manager.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "unknown"
+          agent: "main"
+          comment: "Food replacement rate changed from 1.0 to 0.5 to address user feedback about fast food respawning. Need to test this change to ensure it's working correctly and hasn't caused regressions."
+
   - task: "Complete Player Journey Integration"
     implemented: true
     working: true
