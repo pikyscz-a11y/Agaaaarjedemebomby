@@ -164,9 +164,11 @@ class GameManager:
                 
         game.food = remaining_food
         
-        # Generate new food to maintain count
+        # Generate new food to maintain count (less frequently)
         new_food_count = len(food_ids)
         if new_food_count > 0:
+            # Only generate 50% of consumed food to reduce spawn rate
+            new_food_count = max(1, new_food_count // 2)
             new_food = self._generate_food(new_food_count)
             game.food.extend(new_food)
             
