@@ -420,10 +420,7 @@ class MoneyAgarAPITester:
             self.log_test("Food Respawn - Insufficient Food", False, f"Not enough food items for test: {len(food_ids)}")
             return
             
-        status, consume_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food', {
-            "food_ids": food_ids,
-            "player_id": player["id"]
-        })
+        status, consume_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food?player_id={player["id"]}', food_ids)
         
         if status != 200:
             self.log_test("Food Respawn - Food Consumption", False, f"Failed to consume food: {status}")
