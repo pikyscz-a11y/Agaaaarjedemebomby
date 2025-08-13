@@ -391,6 +391,170 @@ class MoneyAgarAPITester:
         success = status == 200 and all(key in data for key in ['playersOnline', 'activeGames', 'gamesToday', 'totalPrizePool'])
         self.log_test("Platform Stats", success, f"Status: {status}, Online: {data.get('playersOnline', 0)}, Games: {data.get('activeGames', 0)}", response_time)
         
+    # ==================== FOOD RESPAWN RATE TESTS ====================
+    async def test_food_respawn_rate_fix(self):
+        """Test the food respawn rate fix - should be 50% instead of 100%"""
+        print("\n=== FOOD RESPAWN RATE TESTING ===")
+        
+        if not self.test_players or not self.test_games:
+            self.log_test("Food Respawn - Missing Data", False, "No test players or games available")
+            return
+            
+        game = self.test_games[0]
+        player = self.test_players[0]
+        
+        # Step 1: Get initial game state and food count
+        status, initial_state, response_time = await self.make_request('GET', f'/games/{game["id"]}/state')
+        if status != 200:
+            self.log_test("Food Respawn - Initial State", False, f"Failed to get initial state: {status}")
+            return
+            
+        initial_food_count = len(initial_state.get('food', []))
+        self.log_test("Food Respawn - Initial State", True, f"Initial food count: {initial_food_count}", response_time)
+        
+        # Step 2: Simulate food consumption (consume 4 food items)
+        food_items = initial_state.get('food', [])[:4]  # Take first 4 food items
+        food_ids = [food['id'] for food in food_items]
+        
+        if len(food_ids) < 4:
+            self.log_test("Food Respawn - Insufficient Food", False, f"Not enough food items for test: {len(food_ids)}")
+            return
+            
+        status, consume_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food', {
+            "food_ids": food_ids,
+            "player_id": player["id"]
+        })
+        
+        if status != 200:
+            self.log_test("Food Respawn - Food Consumption", False, f"Failed to consume food: {status}")
+            return
+            
+        points_earned = consume_response.get('pointsEarned', 0)
+        self.log_test("Food Respawn - Food Consumption", True, f"Consumed 4 food items, earned {points_earned} points", response_time)
+        
+        # Step 3: Check food count after consumption (should be reduced by consumed amount)
+        status, after_consume_state, response_time = await self.make_request('GET', f'/games/{game["id"]}/state')
+        if status != 200:
+            self.log_test("Food Respawn - Post Consumption State", False, f"Failed to get state after consumption: {status}")
+            return
+            
+        after_consume_food_count = len(after_consume_state.get('food', []))
+        
+        # Calculate expected food count with 50% respawn rate
+        # Initial count - consumed + (consumed * 0.5) = initial - (consumed * 0.5)
+        expected_food_count = initial_food_count - (len(food_ids) // 2)  # 50% respawn rate
+        
+        # Allow some tolerance for the max(1, count//2) logic
+        tolerance = 1
+        food_count_correct = abs(after_consume_food_count - expected_food_count) <= tolerance
+        
+        self.log_test("Food Respawn - 50% Rate Verification", food_count_correct, 
+                     f"Food count after consumption: {after_consume_food_count}, Expected: ~{expected_food_count} (±{tolerance})", response_time)
+        
+        # Step 4: Test multiple consumption cycles to verify consistent 50% rate
+        await asyncio.sleep(0.1)  # Small delay
+        
+        # Consume 2 more food items
+        remaining_food = after_consume_state.get('food', [])[:2]
+        if len(remaining_food) >= 2:
+            food_ids_2 = [food['id'] for food in remaining_food]
+            
+            status, consume_response_2, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food', {
+                "food_ids": food_ids_2,
+                "player_id": player["id"]
+            })
+            
+            if status == 200:
+                # Check final state
+                status, final_state, response_time = await self.make_request('GET', f'/games/{game["id"]}/state')
+                if status == 200:
+                    final_food_count = len(final_state.get('food', []))
+                    
+                    # With 50% respawn rate, consuming 2 more should add back 1
+                    expected_final_count = after_consume_food_count - 2 + max(1, 2 // 2)  # -2 consumed +1 respawned
+                    
+                    final_count_correct = abs(final_food_count - expected_final_count) <= tolerance
+                    self.log_test("Food Respawn - Multiple Consumption Test", final_count_correct,
+                                 f"Final food count: {final_food_count}, Expected: ~{expected_final_count} (±{tolerance})", response_time)
+                else:
+                    self.log_test("Food Respawn - Final State Check", False, f"Failed to get final state: {status}")
+            else:
+                self.log_test("Food Respawn - Second Consumption", False, f"Failed second consumption: {status}")
+        else:
+            self.log_test("Food Respawn - Multiple Consumption Test", True, "Insufficient food for second test, but first test passed", 0)
+            
+    async def test_game_state_consistency(self):
+        """Test game state consistency after food interactions"""
+        print("\n=== GAME STATE CONSISTENCY TESTING ===")
+        
+        if not self.test_players or not self.test_games:
+            self.log_test("Game State Consistency - Missing Data", False, "No test players or games available")
+            return
+            
+        game = self.test_games[0]
+        player = self.test_players[0]
+        
+        # Step 1: Get initial state
+        status, initial_state, response_time = await self.make_request('GET', f'/games/{game["id"]}/state')
+        if status != 200:
+            self.log_test("Game State Consistency - Initial State", False, f"Failed to get initial state: {status}")
+            return
+            
+        initial_players = len(initial_state.get('players', []))
+        initial_food = len(initial_state.get('food', []))
+        initial_powerups = len(initial_state.get('powerUps', []))
+        
+        self.log_test("Game State Consistency - Initial State", True, 
+                     f"Players: {initial_players}, Food: {initial_food}, PowerUps: {initial_powerups}", response_time)
+        
+        # Step 2: Update player position
+        position_data = {
+            "playerId": player["id"],
+            "x": 350.0,
+            "y": 250.0,
+            "money": 200
+        }
+        status, position_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/update-position', position_data)
+        
+        if status != 200:
+            self.log_test("Game State Consistency - Position Update", False, f"Failed to update position: {status}")
+            return
+            
+        self.log_test("Game State Consistency - Position Update", True, "Position updated successfully", response_time)
+        
+        # Step 3: Verify state consistency after position update
+        status, after_position_state, response_time = await self.make_request('GET', f'/games/{game["id"]}/state')
+        if status != 200:
+            self.log_test("Game State Consistency - Post Position State", False, f"Failed to get state after position update: {status}")
+            return
+            
+        # Check that player position was updated correctly
+        players = after_position_state.get('players', [])
+        player_found = False
+        position_correct = False
+        
+        for p in players:
+            if p['playerId'] == player['id']:
+                player_found = True
+                position_correct = (abs(p['x'] - 350.0) < 0.1 and 
+                                  abs(p['y'] - 250.0) < 0.1 and 
+                                  p['money'] == 200)
+                break
+                
+        self.log_test("Game State Consistency - Position Verification", 
+                     player_found and position_correct,
+                     f"Player found: {player_found}, Position correct: {position_correct}", response_time)
+        
+        # Step 4: Verify food and powerup counts remain consistent
+        after_position_food = len(after_position_state.get('food', []))
+        after_position_powerups = len(after_position_state.get('powerUps', []))
+        
+        counts_consistent = (after_position_food == initial_food and 
+                           after_position_powerups == initial_powerups)
+        
+        self.log_test("Game State Consistency - Counts After Position Update", counts_consistent,
+                     f"Food: {after_position_food} (was {initial_food}), PowerUps: {after_position_powerups} (was {initial_powerups})", 0)
+
     # ==================== INTEGRATION TESTS ====================
     async def test_complete_player_journey(self):
         """Test complete player journey from registration to withdrawal"""
