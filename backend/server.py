@@ -1,64 +1,43 @@
-from fastapi import FastAPI, APIRouter
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List
-import uuid
-from datetime import datetime
+from dotenv import load_dotenv
 
+# Import our modules
+from models import *
+from database import database
+from game_manager import game_manager
+from utils import *
 
+# Load environment variables
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Lifespan manager for startup/shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await database.connect()
+    logging.info("Database connected")
+    yield
+    # Shutdown
+    await database.disconnect()
+    logging.info("Database disconnected")
 
-# Create the main app without a prefix
-app = FastAPI()
+# Create the main app
+app = FastAPI(lifespan=lifespan)
 
-# Create a router with the /api prefix
+# Create API router
 api_router = APIRouter(prefix="/api")
 
-
-# Define Models
-class StatusCheck(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class StatusCheckCreate(BaseModel):
-    client_name: str
-
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
-
-# Include the router in the main app
-app.include_router(api_router)
-
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -70,6 +49,266 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+# Health check
+@api_router.get("/")
+async def root():
+    return {"message": "MoneyAgar.io API is running!"}
+
+# Player Management Endpoints
+@api_router.post("/players/register", response_model=Player)
+async def register_player(player_data: PlayerCreate):
+    """Register a new player"""
+    try:
+        # Sanitize name
+        sanitized_name = sanitize_player_name(player_data.name)
+        if not sanitized_name:
+            raise HTTPException(status_code=400, detail="Invalid player name")
+        
+        # Check if name already exists
+        existing_player = await database.get_player_by_name(sanitized_name)
+        if existing_player:
+            return existing_player  # Return existing player instead of error
+        
+        # Create new player
+        player = Player(name=sanitized_name, email=player_data.email)
+        created_player = await database.create_player(player)
+        
+        logger.info(f"New player registered: {created_player.name}")
+        return created_player
+        
+    except Exception as e:
+        logger.error(f"Error registering player: {e}")
+        raise HTTPException(status_code=500, detail="Failed to register player")
+
+@api_router.get("/players/{player_id}", response_model=Player)
+async def get_player(player_id: str):
+    """Get player by ID"""
+    player = await database.get_player(player_id)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return player
+
+@api_router.put("/players/{player_id}/stats")
+async def update_player_stats(player_id: str, stats: PlayerStats):
+    """Update player stats after game"""
+    success = await database.update_player_stats(
+        player_id, stats.score, stats.kills, stats.gameMode
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return {"success": True}
+
+# Game Management Endpoints
+@api_router.post("/games/create", response_model=Game)
+async def create_game(game_data: GameCreate):
+    """Create or join a game"""
+    try:
+        # Get player info
+        player = await database.get_player(game_data.playerId)
+        if not player:
+            raise HTTPException(status_code=404, detail="Player not found")
+        
+        # Find or create game
+        game = await game_manager.find_or_create_game(
+            game_data.gameMode, game_data.playerId, player.name
+        )
+        
+        logger.info(f"Player {player.name} joined game {game.id}")
+        return game
+        
+    except Exception as e:
+        logger.error(f"Error creating/joining game: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create/join game")
+
+@api_router.get("/games/{game_id}/state", response_model=GameState)
+async def get_game_state(game_id: str):
+    """Get current game state"""
+    game_state = await game_manager.get_game_state(game_id)
+    if not game_state:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return game_state
+
+@api_router.post("/games/{game_id}/update-position")
+async def update_position(game_id: str, position_data: PositionUpdate):
+    """Update player position"""
+    success = await game_manager.update_player_position(
+        game_id, position_data.playerId, position_data.x, position_data.y, position_data.money
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail="Game or player not found")
+    return {"success": True}
+
+@api_router.delete("/games/{game_id}/leave")
+async def leave_game(game_id: str, player_id: str):
+    """Leave a game"""
+    success = await game_manager.remove_player(player_id)
+    return {"success": success}
+
+@api_router.post("/games/{game_id}/consume-food")
+async def consume_food(game_id: str, food_ids: List[str], player_id: str):
+    """Process food consumption"""
+    points_earned = await game_manager.process_food_consumption(game_id, player_id, food_ids)
+    return {"pointsEarned": points_earned}
+
+@api_router.post("/games/{game_id}/consume-powerup")
+async def consume_power_up(game_id: str, power_up_ids: List[str], player_id: str):
+    """Process power-up consumption"""
+    consumed_power_ups = await game_manager.process_power_up_consumption(game_id, player_id, power_up_ids)
+    return {"consumedPowerUps": consumed_power_ups}
+
+# Money Management Endpoints
+@api_router.post("/payments/add-money", response_model=PaymentResponse)
+async def add_money(payment_data: PaymentRequest):
+    """Add money to player account"""
+    try:
+        # Get player
+        player = await database.get_player(payment_data.playerId)
+        if not player:
+            raise HTTPException(status_code=404, detail="Player not found")
+        
+        # Simulate payment processing
+        if not simulate_payment_processing():
+            raise HTTPException(status_code=400, detail="Payment failed. Please try again.")
+        
+        # Create transaction record
+        transaction = Transaction(
+            playerId=payment_data.playerId,
+            type="deposit",
+            amount=payment_data.amount,
+            transactionId=generate_transaction_id()
+        )
+        await database.create_transaction(transaction)
+        
+        # Update player balance
+        new_real_money = player.realMoney + payment_data.amount
+        new_total_money = player.virtualMoney + new_real_money
+        
+        await database.update_player(payment_data.playerId, {
+            "realMoney": new_real_money
+        })
+        
+        logger.info(f"Payment processed: ${payment_data.amount} for player {player.name}")
+        
+        return PaymentResponse(
+            success=True,
+            transactionId=transaction.transactionId,
+            newBalance=new_total_money,
+            message=f"Successfully added ${payment_data.amount}"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing payment: {e}")
+        raise HTTPException(status_code=500, detail="Payment processing failed")
+
+@api_router.post("/payments/withdraw", response_model=WithdrawalResponse)
+async def withdraw_money(withdrawal_data: WithdrawalRequest):
+    """Withdraw money from player account"""
+    try:
+        # Get player
+        player = await database.get_player(withdrawal_data.playerId)
+        if not player:
+            raise HTTPException(status_code=404, detail="Player not found")
+        
+        # Check sufficient balance
+        if player.virtualMoney < withdrawal_data.amount:
+            raise HTTPException(status_code=400, detail="Insufficient virtual money balance")
+        
+        # Simulate withdrawal processing
+        if not simulate_withdrawal_processing():
+            raise HTTPException(status_code=400, detail="Withdrawal failed. Please contact support.")
+        
+        # Calculate fee
+        fee = calculate_platform_fee(withdrawal_data.amount)
+        net_amount = withdrawal_data.amount - fee
+        
+        # Create transaction record
+        transaction = Transaction(
+            playerId=withdrawal_data.playerId,
+            type="withdrawal",
+            amount=withdrawal_data.amount,
+            transactionId=generate_transaction_id()
+        )
+        await database.create_transaction(transaction)
+        
+        # Update player balance
+        new_virtual_money = player.virtualMoney - withdrawal_data.amount
+        new_real_money = player.realMoney + net_amount
+        
+        await database.update_player(withdrawal_data.playerId, {
+            "virtualMoney": new_virtual_money,
+            "realMoney": new_real_money
+        })
+        
+        logger.info(f"Withdrawal processed: ${withdrawal_data.amount} for player {player.name}")
+        
+        return WithdrawalResponse(
+            success=True,
+            withdrawalId=transaction.transactionId,
+            amount=net_amount,
+            fee=fee,
+            message=f"Successfully withdrew ${net_amount} (${fee} platform fee)"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing withdrawal: {e}")
+        raise HTTPException(status_code=500, detail="Withdrawal processing failed")
+
+@api_router.get("/payments/history/{player_id}")
+async def get_payment_history(player_id: str):
+    """Get player's payment history"""
+    transactions = await database.get_player_transactions(player_id)
+    return {"transactions": transactions}
+
+# Leaderboard & Stats Endpoints
+@api_router.get("/leaderboard")
+async def get_leaderboard():
+    """Get current leaderboard"""
+    try:
+        # Try to get real leaderboard from database
+        real_leaderboard = await database.get_leaderboard(10)
+        
+        if real_leaderboard:
+            return {"players": real_leaderboard}
+        else:
+            # Fallback to mock data if no players yet
+            mock_leaderboard = get_mock_leaderboard()
+            return {"players": [entry.dict() for entry in mock_leaderboard]}
+            
+    except Exception as e:
+        logger.error(f"Error getting leaderboard: {e}")
+        # Return mock data on error
+        mock_leaderboard = get_mock_leaderboard()
+        return {"players": [entry.dict() for entry in mock_leaderboard]}
+
+@api_router.get("/tournaments/active")
+async def get_active_tournaments():
+    """Get active tournaments"""
+    tournaments = get_mock_tournaments()
+    return {"tournaments": [t.dict() for t in tournaments]}
+
+@api_router.get("/games/recent-matches")
+async def get_recent_matches():
+    """Get recent matches"""
+    matches = get_mock_recent_matches()
+    return {"matches": [m.dict() for m in matches]}
+
+@api_router.get("/stats/platform")
+async def get_platform_stats():
+    """Get platform statistics"""
+    # Count active games and players
+    total_active_games = len(game_manager.active_games)
+    total_online_players = sum(len(game.players) for game in game_manager.active_games.values())
+    
+    return {
+        "playersOnline": total_online_players,
+        "activeGames": total_active_games,
+        "gamesToday": 1247,  # Mock data
+        "totalPrizePool": 12456  # Mock data
+    }
+
+# Include router in main app
+app.include_router(api_router)
