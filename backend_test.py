@@ -701,6 +701,11 @@ class MoneyAgarAPITester:
             await self.test_position_update()
             await self.test_leave_game()
             
+            # Food Respawn Rate Tests
+            print("\n🍎 FOOD RESPAWN RATE TESTS")
+            await self.test_food_respawn_rate_fix()
+            await self.test_game_state_consistency()
+            
             # Money Management Tests
             print("\n💰 MONEY MANAGEMENT TESTS")
             await self.test_add_money()
