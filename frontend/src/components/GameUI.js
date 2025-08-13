@@ -1,40 +1,118 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Coins, Trophy, Zap, Crown, DollarSign, Users } from 'lucide-react';
-import { mockData } from '../utils/mock';
+import { paymentAPI, statsAPI, playerAPI } from '../services/api';
+import { toast } from '../hooks/use-toast';
 
 const GameUI = ({ player, setPlayer, gameState }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState('');
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const handleAddMoney = (amount) => {
-    // Mock payment processing
-    setPlayer(prev => ({
-      ...prev,
-      realMoney: prev.realMoney + amount,
-      money: prev.money + amount
-    }));
-    setShowPaymentModal(false);
-    setPaymentAmount('');
-  };
+  // Load leaderboard data
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      try {
+        const data = await statsAPI.getLeaderboard();
+        setLeaderboard(data.players || []);
+      } catch (error) {
+        console.error('Failed to load leaderboard:', error);
+      }
+    };
 
-  const handleWithdraw = (amount) => {
-    if (player.virtualMoney >= amount) {
-      setPlayer(prev => ({
-        ...prev,
-        virtualMoney: prev.virtualMoney - amount,
-        realMoney: prev.realMoney + (amount * 0.9), // 10% platform fee
-        money: prev.money - amount
-      }));
+    loadLeaderboard();
+    const interval = setInterval(loadLeaderboard, 10000); // Update every 10 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleAddMoney = async (amount) => {
+    if (isProcessingPayment || !player.id) return;
+    
+    setIsProcessingPayment(true);
+    try {
+      const result = await paymentAPI.addMoney(player.id, amount);
+      
+      if (result.success) {
+        // Update player money locally
+        setPlayer(prev => ({
+          ...prev,
+          realMoney: prev.realMoney + amount,
+          money: prev.money + amount
+        }));
+        
+        // Refresh player data from server
+        const updatedPlayer = await playerAPI.getPlayer(player.id);
+        setPlayer(prev => ({
+          ...prev,
+          realMoney: updatedPlayer.realMoney,
+          virtualMoney: updatedPlayer.virtualMoney
+        }));
+        
+        toast({
+          title: "Payment Successful",
+          description: `Added $${amount} to your account`,
+        });
+      }
+    } catch (error) {
+      console.error('Payment failed:', error);
+      toast({
+        title: "Payment Failed",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingPayment(false);
+      setShowPaymentModal(false);
     }
   };
 
-  const activePowerUps = player.powerUps.filter(p => p.duration > 0);
-  const leaderboard = mockData.getLeaderboard();
+  const handleWithdraw = async (amount) => {
+    if (isProcessingPayment || !player.id) return;
+    
+    if (player.virtualMoney < amount) {
+      toast({
+        title: "Insufficient Balance",
+        description: "Not enough virtual money to withdraw",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsProcessingPayment(true);
+    try {
+      const result = await paymentAPI.withdraw(player.id, amount);
+      
+      if (result.success) {
+        // Update player money locally
+        setPlayer(prev => ({
+          ...prev,
+          virtualMoney: prev.virtualMoney - amount,
+          realMoney: prev.realMoney + result.amount,
+          money: (prev.virtualMoney - amount) + prev.realMoney + result.amount
+        }));
+        
+        toast({
+          title: "Withdrawal Successful",
+          description: `Withdrew $${result.amount} (Fee: $${result.fee})`,
+        });
+      }
+    } catch (error) {
+      console.error('Withdrawal failed:', error);
+      toast({
+        title: "Withdrawal Failed",
+        description: error.response?.data?.detail || "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const activePowerUps = player.powerUps?.filter(p => p.duration > 0) || [];
 
   return (
     <div className="w-80 space-y-4">
@@ -44,7 +122,7 @@ const GameUI = ({ player, setPlayer, gameState }) => {
           <CardTitle className="flex items-center gap-2 text-lg">
             <Avatar className="w-8 h-8">
               <AvatarFallback className="bg-blue-500 text-white text-sm">
-                {player.name.charAt(0).toUpperCase()}
+                {player.name?.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             {player.name}
@@ -53,11 +131,11 @@ const GameUI = ({ player, setPlayer, gameState }) => {
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">${player.score}</div>
+              <div className="text-2xl font-bold text-blue-600">${player.score || 0}</div>
               <div className="text-sm text-gray-600">Score</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{player.kills}</div>
+              <div className="text-2xl font-bold text-green-600">{player.kills || 0}</div>
               <div className="text-sm text-gray-600">Kills</div>
             </div>
           </div>
@@ -65,9 +143,9 @@ const GameUI = ({ player, setPlayer, gameState }) => {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Size Progress</span>
-              <span className="text-sm text-gray-600">{Math.round(10 + Math.sqrt(player.money / 10))}px</span>
+              <span className="text-sm text-gray-600">{Math.round(10 + Math.sqrt((player.money || 0) / 10))}px</span>
             </div>
-            <Progress value={Math.min((player.money / 1000) * 100, 100)} className="h-2" />
+            <Progress value={Math.min(((player.money || 0) / 1000) * 100, 100)} className="h-2" />
           </div>
         </CardContent>
       </Card>
@@ -83,11 +161,11 @@ const GameUI = ({ player, setPlayer, gameState }) => {
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center">
-              <div className="text-xl font-bold text-green-600">${player.virtualMoney}</div>
+              <div className="text-xl font-bold text-green-600">${player.virtualMoney || 0}</div>
               <div className="text-sm text-gray-600">Virtual</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-600">${player.realMoney}</div>
+              <div className="text-xl font-bold text-blue-600">${player.realMoney || 0}</div>
               <div className="text-sm text-gray-600">Real Money</div>
             </div>
           </div>
@@ -97,16 +175,17 @@ const GameUI = ({ player, setPlayer, gameState }) => {
               onClick={() => setShowPaymentModal(true)}
               className="w-full bg-green-600 hover:bg-green-700"
               size="sm"
+              disabled={isProcessingPayment}
             >
               <DollarSign className="w-4 h-4 mr-2" />
-              Add Money
+              {isProcessingPayment ? 'Processing...' : 'Add Money'}
             </Button>
             <Button 
               onClick={() => handleWithdraw(100)}
               variant="outline"
               className="w-full"
               size="sm"
-              disabled={player.virtualMoney < 100}
+              disabled={player.virtualMoney < 100 || isProcessingPayment}
             >
               Withdraw $100
             </Button>
@@ -150,17 +229,17 @@ const GameUI = ({ player, setPlayer, gameState }) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {leaderboard.slice(0, 5).map((player, index) => (
+            {leaderboard.slice(0, 5).map((playerEntry, index) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Badge variant={index === 0 ? "default" : "secondary"} className={
                     index === 0 ? "bg-yellow-500" : ""
                   }>
-                    {index + 1}
+                    {playerEntry.rank}
                   </Badge>
-                  <span className="text-sm font-medium">{player.name}</span>
+                  <span className="text-sm font-medium">{playerEntry.name}</span>
                 </div>
-                <span className="text-sm text-gray-600">${player.score}</span>
+                <span className="text-sm text-gray-600">${playerEntry.score}</span>
               </div>
             ))}
           </div>
@@ -179,15 +258,15 @@ const GameUI = ({ player, setPlayer, gameState }) => {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Players Online:</span>
-              <span className="font-medium">{gameState.otherPlayers.length + 1}</span>
+              <span className="font-medium">{gameState.gameStats?.playersOnline || 0}</span>
             </div>
             <div className="flex justify-between">
               <span>Food Items:</span>
-              <span className="font-medium">{gameState.food.length}</span>
+              <span className="font-medium">{gameState.gameStats?.foodItems || 0}</span>
             </div>
             <div className="flex justify-between">
-              <span>Your Rank:</span>
-              <span className="font-medium text-blue-600">#{Math.floor(Math.random() * 10) + 1}</span>
+              <span>Game Mode:</span>
+              <span className="font-medium text-blue-600">{gameState.gameStats?.gameMode || 'Classic'}</span>
             </div>
           </div>
         </CardContent>
@@ -208,13 +287,18 @@ const GameUI = ({ player, setPlayer, gameState }) => {
                     onClick={() => handleAddMoney(amount)}
                     variant="outline"
                     className="h-12"
+                    disabled={isProcessingPayment}
                   >
                     ${amount}
                   </Button>
                 ))}
               </div>
               <div className="text-center">
-                <Button onClick={() => setShowPaymentModal(false)} variant="secondary">
+                <Button 
+                  onClick={() => setShowPaymentModal(false)} 
+                  variant="secondary"
+                  disabled={isProcessingPayment}
+                >
                   Cancel
                 </Button>
               </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -15,11 +15,16 @@ import {
   Target,
   Timer
 } from 'lucide-react';
-import { mockData } from '../utils/mock';
+import { playerAPI, statsAPI } from '../services/api';
+import { toast } from '../hooks/use-toast';
 
 const GameLobby = ({ onStartGame, player, setPlayer }) => {
-  const [playerName, setPlayerName] = useState(player.name);
+  const [playerName, setPlayerName] = useState(player.name || '');
   const [selectedMode, setSelectedMode] = useState('classic');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [tournaments, setTournaments] = useState([]);
+  const [recentMatches, setRecentMatches] = useState([]);
+  const [platformStats, setPlatformStats] = useState({});
   
   const gameModes = [
     {
@@ -60,13 +65,69 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
     }
   ];
 
-  const currentTournaments = mockData.getTournaments();
-  const recentMatches = mockData.getRecentMatches();
+  // Load lobby data
+  useEffect(() => {
+    const loadLobbyData = async () => {
+      try {
+        const [tournamentsData, matchesData, statsData] = await Promise.all([
+          statsAPI.getActiveTournaments(),
+          statsAPI.getRecentMatches(),
+          statsAPI.getPlatformStats()
+        ]);
+        
+        setTournaments(tournamentsData.tournaments || []);
+        setRecentMatches(matchesData.matches || []);
+        setPlatformStats(statsData || {});
+      } catch (error) {
+        console.error('Failed to load lobby data:', error);
+      }
+    };
 
-  const handleStartGame = () => {
-    if (playerName.trim()) {
-      setPlayer(prev => ({ ...prev, name: playerName.trim() }));
+    loadLobbyData();
+  }, []);
+
+  const handleStartGame = async () => {
+    if (!playerName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter your player name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRegistering(true);
+    try {
+      // Register or get existing player
+      const registeredPlayer = await playerAPI.register(playerName.trim());
+      
+      setPlayer(prev => ({
+        ...prev,
+        id: registeredPlayer.id,
+        name: registeredPlayer.name,
+        virtualMoney: registeredPlayer.virtualMoney,
+        realMoney: registeredPlayer.realMoney,
+        totalGames: registeredPlayer.totalGames,
+        bestScore: registeredPlayer.bestScore,
+        wins: registeredPlayer.wins,
+        totalKills: registeredPlayer.totalKills
+      }));
+
+      toast({
+        title: "Welcome!",
+        description: `Starting ${selectedMode} mode...`,
+      });
+
       onStartGame(selectedMode);
+    } catch (error) {
+      console.error('Failed to register player:', error);
+      toast({
+        title: "Registration Failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -105,20 +166,21 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
                     placeholder="Enter your name"
                     className="bg-slate-700 border-slate-600 text-white"
                     maxLength={15}
+                    disabled={isRegistering}
                   />
                 </div>
                 
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <div className="text-2xl font-bold text-green-400">${player.virtualMoney}</div>
+                    <div className="text-2xl font-bold text-green-400">${player.virtualMoney || 250}</div>
                     <div className="text-sm text-gray-400">Virtual Money</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-blue-400">${player.realMoney}</div>
+                    <div className="text-2xl font-bold text-blue-400">${player.realMoney || 0}</div>
                     <div className="text-sm text-gray-400">Real Money</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-purple-400">{player.totalGames}</div>
+                    <div className="text-2xl font-bold text-purple-400">{player.totalGames || 0}</div>
                     <div className="text-sm text-gray-400">Games Played</div>
                   </div>
                 </div>
@@ -168,11 +230,11 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
 
                 <Button
                   onClick={handleStartGame}
-                  disabled={!playerName.trim()}
+                  disabled={!playerName.trim() || isRegistering}
                   className="w-full mt-6 h-12 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
                   <Play className="w-5 h-5 mr-2" />
-                  Start Game
+                  {isRegistering ? 'Starting Game...' : 'Start Game'}
                 </Button>
               </CardContent>
             </Card>
@@ -190,7 +252,7 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {currentTournaments.map((tournament, index) => (
+                  {tournaments.slice(0, 3).map((tournament, index) => (
                     <div key={index} className="p-3 bg-slate-700 rounded-lg">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-medium text-white">{tournament.name}</h4>
@@ -222,7 +284,7 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {recentMatches.map((match, index) => (
+                  {recentMatches.slice(0, 5).map((match, index) => (
                     <div key={index} className="flex items-center justify-between p-2 bg-slate-700 rounded">
                       <div>
                         <div className="text-white font-medium">{match.winner}</div>
@@ -250,19 +312,23 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">Players Online:</span>
-                    <span className="text-white font-medium">1,247</span>
+                    <span className="text-white font-medium">{platformStats.playersOnline || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Active Games:</span>
+                    <span className="text-white font-medium">{platformStats.activeGames || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Games Today:</span>
-                    <span className="text-white font-medium">3,892</span>
+                    <span className="text-white font-medium">{platformStats.gamesToday || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Prize Pool:</span>
-                    <span className="text-green-400 font-medium">$12,456</span>
+                    <span className="text-green-400 font-medium">${platformStats.totalPrizePool || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Your Best:</span>
-                    <span className="text-yellow-400 font-medium">${player.bestScore}</span>
+                    <span className="text-yellow-400 font-medium">${player.bestScore || 0}</span>
                   </div>
                 </div>
               </CardContent>

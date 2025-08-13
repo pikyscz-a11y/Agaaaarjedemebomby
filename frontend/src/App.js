@@ -5,24 +5,29 @@ import GameLobby from "./components/GameLobby";
 import GameCanvas from "./components/GameCanvas";
 import GameUI from "./components/GameUI";
 import { Toaster } from "./components/ui/sonner";
+import { gameAPI, playerAPI } from "./services/api";
+import { toast } from "./hooks/use-toast";
 
 function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [selectedMode, setSelectedMode] = useState('classic');
+  const [currentGameId, setCurrentGameId] = useState(null);
   
   // Player state
   const [player, setPlayer] = useState({
-    id: Math.random().toString(36).substr(2, 9),
-    name: "Player",
+    id: null,
+    name: "",
     x: 400,
     y: 300,
     money: 100,
     virtualMoney: 250,
-    realMoney: 50,
+    realMoney: 0,
     score: 0,
     kills: 0,
     totalGames: 0,
-    bestScore: 1250,
+    bestScore: 0,
+    wins: 0,
+    totalKills: 0,
     isAlive: true,
     color: '#3498db',
     powerUps: [],
@@ -38,38 +43,109 @@ function App() {
     powerUps: [],
     gameMode: 'classic',
     timeRemaining: 0,
-    isActive: false
+    isActive: false,
+    gameStats: {}
   });
 
-  const handleStartGame = (mode) => {
-    setSelectedMode(mode);
-    setPlayer(prev => ({
-      ...prev,
-      isAlive: true,
-      score: 0,
-      kills: 0,
-      x: 400,
-      y: 300,
-      powerUps: []
-    }));
-    setGameState(prev => ({
-      ...prev,
-      gameMode: mode,
-      isActive: true,
-      food: [],
-      otherPlayers: [],
-      powerUps: []
-    }));
-    setGameStarted(true);
+  const handleStartGame = async (mode) => {
+    if (!player.id) {
+      toast({
+        title: "Error",
+        description: "Player not registered",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Create or join game
+      const game = await gameAPI.createGame(mode, player.id);
+      
+      setCurrentGameId(game.id);
+      setSelectedMode(mode);
+      setPlayer(prev => ({
+        ...prev,
+        isAlive: true,
+        score: 0,
+        kills: 0,
+        x: 400,
+        y: 300,
+        powerUps: []
+      }));
+      
+      setGameState(prev => ({
+        ...prev,
+        gameMode: mode,
+        isActive: true,
+        food: game.food || [],
+        otherPlayers: game.players?.filter(p => p.playerId !== player.id) || [],
+        powerUps: game.powerUps || [],
+        gameStats: {
+          playersOnline: game.players?.length || 1,
+          foodItems: game.food?.length || 0,
+          gameMode: mode
+        }
+      }));
+      
+      setGameStarted(true);
+      
+      toast({
+        title: "Game Started!",
+        description: `Joined ${mode} mode game`,
+      });
+      
+    } catch (error) {
+      console.error('Failed to start game:', error);
+      toast({
+        title: "Failed to Start Game",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleBackToLobby = () => {
-    setGameStarted(false);
-    setPlayer(prev => ({
-      ...prev,
-      totalGames: prev.totalGames + 1,
-      bestScore: Math.max(prev.bestScore, prev.score)
-    }));
+  const handleBackToLobby = async () => {
+    try {
+      // Update player stats
+      if (currentGameId && player.id && (player.score > 0 || player.kills > 0)) {
+        await playerAPI.updateStats(player.id, player.score, player.kills, selectedMode);
+      }
+      
+      // Leave current game
+      if (currentGameId && player.id) {
+        await gameAPI.leaveGame(currentGameId, player.id);
+      }
+      
+      // Reset game state
+      setGameStarted(false);
+      setCurrentGameId(null);
+      setPlayer(prev => ({
+        ...prev,
+        totalGames: prev.totalGames + 1,
+        bestScore: Math.max(prev.bestScore, prev.score),
+        isAlive: true,
+        score: 0,
+        kills: 0,
+        x: 400,
+        y: 300
+      }));
+      
+      setGameState({
+        food: [],
+        otherPlayers: [],
+        powerUps: [],
+        gameMode: 'classic',
+        timeRemaining: 0,
+        isActive: false,
+        gameStats: {}
+      });
+      
+    } catch (error) {
+      console.error('Failed to leave game properly:', error);
+      // Still go back to lobby even if API calls fail
+      setGameStarted(false);
+      setCurrentGameId(null);
+    }
   };
 
   return (
@@ -92,6 +168,9 @@ function App() {
                       <div className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">
                         Mode: {selectedMode.charAt(0).toUpperCase() + selectedMode.slice(1)}
                       </div>
+                      <div className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium">
+                        Game ID: {currentGameId?.slice(-6)}
+                      </div>
                     </div>
                     
                     <GameCanvas 
@@ -99,6 +178,7 @@ function App() {
                       setPlayer={setPlayer}
                       gameState={gameState}
                       setGameState={setGameState}
+                      gameId={currentGameId}
                     />
                   </div>
                   

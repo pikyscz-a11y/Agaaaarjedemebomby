@@ -1,15 +1,14 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Badge } from './ui/badge';
-import { mockData } from '../utils/mock';
+import { gameAPI } from '../services/api';
 
-const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
+const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const [keys, setKeys] = useState({});
-  const [powerUps, setPowerUps] = useState([]);
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
+  const [lastPositionUpdate, setLastPositionUpdate] = useState(Date.now());
 
   // Game constants
   const CANVAS_WIDTH = 800;
@@ -17,22 +16,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
   const MOVE_SPEED = 3;
   const MIN_SIZE = 10;
   const FOOD_SIZE = 3;
-
-  // Initialize game objects
-  useEffect(() => {
-    if (gameState.food.length === 0) {
-      const initialFood = mockData.generateFood(100, CANVAS_WIDTH, CANVAS_HEIGHT);
-      const initialPlayers = mockData.generatePlayers(8, CANVAS_WIDTH, CANVAS_HEIGHT);
-      const initialPowerUps = mockData.generatePowerUps(5, CANVAS_WIDTH, CANVAS_HEIGHT);
-      
-      setGameState(prev => ({
-        ...prev,
-        food: initialFood,
-        otherPlayers: initialPlayers
-      }));
-      setPowerUps(initialPowerUps);
-    }
-  }, [gameState.food.length, setGameState]);
+  const POSITION_UPDATE_INTERVAL = 100; // Update position every 100ms
 
   // Calculate player size based on money
   const calculateSize = useCallback((money) => {
@@ -81,49 +65,103 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
     }
   }, [player.x, player.y, setPlayer]);
 
+  // Update game state from server
+  const updateGameStateFromServer = useCallback(async () => {
+    if (!gameId) return;
+    
+    try {
+      const serverGameState = await gameAPI.getGameState(gameId);
+      
+      setGameState(prev => ({
+        ...prev,
+        food: serverGameState.food || [],
+        otherPlayers: (serverGameState.players || []).filter(p => p.playerId !== player.id),
+        powerUps: serverGameState.powerUps || [],
+        gameStats: serverGameState.gameStats || {}
+      }));
+    } catch (error) {
+      console.error('Failed to update game state:', error);
+    }
+  }, [gameId, player.id, setGameState]);
+
+  // Send position update to server
+  const sendPositionUpdate = useCallback(async () => {
+    if (!gameId || !player.id) return;
+    
+    try {
+      await gameAPI.updatePosition(gameId, player.id, player.x, player.y, player.money);
+    } catch (error) {
+      console.error('Failed to update position:', error);
+    }
+  }, [gameId, player.id, player.x, player.y, player.money]);
+
   // Collision detection
-  const checkCollisions = useCallback(() => {
+  const checkCollisions = useCallback(async () => {
     const playerSize = calculateSize(player.money);
+    let pointsEarned = 0;
+    let consumedFoodIds = [];
+    let consumedPowerUpIds = [];
     
     // Check food collisions
-    const newFood = gameState.food.filter(food => {
+    gameState.food.forEach(food => {
       const dx = player.x - food.x;
       const dy = player.y - food.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
       if (distance < playerSize + FOOD_SIZE) {
-        setPlayer(prev => ({
-          ...prev,
-          virtualMoney: prev.virtualMoney + food.value,
-          money: prev.money + food.value,
-          score: prev.score + food.value
-        }));
-        return false;
+        pointsEarned += food.value;
+        consumedFoodIds.push(food.id);
       }
-      return true;
     });
 
     // Check power-up collisions
-    const newPowerUps = powerUps.filter(powerUp => {
+    gameState.powerUps.forEach(powerUp => {
       const dx = player.x - powerUp.x;
       const dy = player.y - powerUp.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
       if (distance < playerSize + powerUp.size) {
-        // Apply power-up effect
-        setPlayer(prev => ({
-          ...prev,
-          powerUps: [...prev.powerUps, { ...powerUp, duration: 10000 }],
-          virtualMoney: prev.virtualMoney + powerUp.value,
-          money: prev.money + powerUp.value
-        }));
-        return false;
+        pointsEarned += powerUp.value;
+        consumedPowerUpIds.push(powerUp.id);
       }
-      return true;
     });
 
+    // Send consumption updates to server
+    if (consumedFoodIds.length > 0 && gameId) {
+      try {
+        await gameAPI.consumeFood(gameId, player.id, consumedFoodIds);
+      } catch (error) {
+        console.error('Failed to consume food:', error);
+      }
+    }
+
+    if (consumedPowerUpIds.length > 0 && gameId) {
+      try {
+        const result = await gameAPI.consumePowerUp(gameId, player.id, consumedPowerUpIds);
+        // Handle power-up effects
+        if (result.consumedPowerUps) {
+          setPlayer(prev => ({
+            ...prev,
+            powerUps: [...prev.powerUps, ...result.consumedPowerUps.map(p => ({ ...p, duration: 10000 }))]
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to consume power-up:', error);
+      }
+    }
+
+    // Update player stats locally
+    if (pointsEarned > 0) {
+      setPlayer(prev => ({
+        ...prev,
+        virtualMoney: prev.virtualMoney + pointsEarned,
+        money: prev.money + pointsEarned,
+        score: prev.score + pointsEarned
+      }));
+    }
+
     // Check other player collisions (eating smaller players)
-    const updatedOtherPlayers = gameState.otherPlayers.filter(otherPlayer => {
+    gameState.otherPlayers.forEach(otherPlayer => {
       const dx = player.x - otherPlayer.x;
       const dy = player.y - otherPlayer.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
@@ -132,14 +170,14 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
       if (distance < playerSize + otherSize) {
         if (playerSize > otherSize * 1.2) {
           // Player eats other player
+          const earnedMoney = Math.floor(otherPlayer.money * 0.8);
           setPlayer(prev => ({
             ...prev,
-            virtualMoney: prev.virtualMoney + Math.floor(otherPlayer.money * 0.8),
-            money: prev.money + Math.floor(otherPlayer.money * 0.8),
-            score: prev.score + Math.floor(otherPlayer.money * 0.8),
+            virtualMoney: prev.virtualMoney + earnedMoney,
+            money: prev.money + earnedMoney,
+            score: prev.score + earnedMoney,
             kills: prev.kills + 1
           }));
-          return false;
         } else if (otherSize > playerSize * 1.2) {
           // Other player eats player (game over)
           setPlayer(prev => ({
@@ -148,21 +186,8 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
           }));
         }
       }
-      return true;
     });
-
-    if (newFood.length !== gameState.food.length) {
-      setGameState(prev => ({ ...prev, food: newFood }));
-    }
-    
-    if (newPowerUps.length !== powerUps.length) {
-      setPowerUps(newPowerUps);
-    }
-
-    if (updatedOtherPlayers.length !== gameState.otherPlayers.length) {
-      setGameState(prev => ({ ...prev, otherPlayers: updatedOtherPlayers }));
-    }
-  }, [player, gameState.food, gameState.otherPlayers, powerUps, calculateSize, setPlayer, setGameState]);
+  }, [player, gameState.food, gameState.otherPlayers, gameState.powerUps, calculateSize, setPlayer, gameId]);
 
   // Game loop
   const gameLoop = useCallback(() => {
@@ -192,33 +217,14 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
       return { ...prev, x: newX, y: newY };
     });
 
-    // Update other players (AI movement)
-    setGameState(prev => ({
-      ...prev,
-      otherPlayers: prev.otherPlayers.map(otherPlayer => {
-        const speed = Math.max(MOVE_SPEED - calculateSize(otherPlayer.money) * 0.05, 1);
-        let newX = otherPlayer.x + (Math.random() - 0.5) * speed;
-        let newY = otherPlayer.y + (Math.random() - 0.5) * speed;
-
-        const size = calculateSize(otherPlayer.money);
-        newX = Math.max(size, Math.min(CANVAS_WIDTH - size, newX));
-        newY = Math.max(size, Math.min(CANVAS_HEIGHT - size, newY));
-
-        return { ...otherPlayer, x: newX, y: newY };
-      })
-    }));
-
-    // Add new food periodically
-    if (Math.random() < 0.1 && gameState.food.length < 150) {
-      const newFood = mockData.generateFood(1, CANVAS_WIDTH, CANVAS_HEIGHT)[0];
-      setGameState(prev => ({
-        ...prev,
-        food: [...prev.food, newFood]
-      }));
+    // Send position update to server periodically
+    if (now - lastPositionUpdate > POSITION_UPDATE_INTERVAL) {
+      sendPositionUpdate();
+      setLastPositionUpdate(now);
     }
 
     checkCollisions();
-  }, [player, gameState, calculateSize, setPlayer, setGameState, checkCollisions, lastUpdateTime]);
+  }, [player, calculateSize, setPlayer, checkCollisions, sendPositionUpdate, lastUpdateTime, lastPositionUpdate]);
 
   // Render function
   const render = useCallback(() => {
@@ -253,7 +259,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
     });
 
     // Draw power-ups
-    powerUps.forEach(powerUp => {
+    gameState.powerUps.forEach(powerUp => {
       ctx.fillStyle = powerUp.color;
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
@@ -298,7 +304,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
       ctx.textAlign = 'center';
       ctx.fillText(player.name, player.x, player.y + 4);
     }
-  }, [player, gameState, powerUps, calculateSize]);
+  }, [player, gameState, calculateSize]);
 
   // Animation loop
   useEffect(() => {
@@ -317,6 +323,24 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
     };
   }, [gameLoop, render]);
 
+  // Update game state from server periodically
+  useEffect(() => {
+    const interval = setInterval(updateGameStateFromServer, 1000); // Update every second
+    return () => clearInterval(interval);
+  }, [updateGameStateFromServer]);
+
+  const handleGameOver = async () => {
+    // Send final stats to server
+    if (gameId && player.id) {
+      try {
+        await gameAPI.leaveGame(gameId, player.id);
+      } catch (error) {
+        console.error('Failed to leave game:', error);
+      }
+    }
+    window.location.reload();
+  };
+
   return (
     <div className="relative">
       <canvas
@@ -334,7 +358,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
             <h2 className="text-2xl font-bold text-red-600 mb-4">Game Over!</h2>
             <p className="text-gray-600 mb-4">Final Score: ${player.score}</p>
             <p className="text-gray-600 mb-6">Kills: {player.kills}</p>
-            <Button onClick={() => window.location.reload()}>
+            <Button onClick={handleGameOver}>
               Play Again
             </Button>
           </Card>
@@ -342,7 +366,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState }) => {
       )}
 
       <div className="absolute bottom-4 left-4 text-sm text-gray-600 bg-white bg-opacity-90 p-2 rounded">
-        <p>Move: Mouse | Boost: Space (coming soon)</p>
+        <p>Move: Mouse | Online Game Active</p>
       </div>
     </div>
   );
