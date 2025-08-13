@@ -456,10 +456,7 @@ class MoneyAgarAPITester:
         if len(remaining_food) >= 2:
             food_ids_2 = [food['id'] for food in remaining_food]
             
-            status, consume_response_2, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food', {
-                "food_ids": food_ids_2,
-                "player_id": player["id"]
-            })
+            status, consume_response_2, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food?player_id={player["id"]}', food_ids_2)
             
             if status == 200:
                 # Check final state
