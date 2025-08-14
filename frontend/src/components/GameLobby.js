@@ -137,16 +137,42 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-pink-900 p-6 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000ms"></div>
+        <div className="absolute top-40 left-40 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000ms"></div>
+        
+        {/* Floating Money Icons */}
+        <div className="absolute top-20 left-1/4 text-yellow-400 text-2xl animate-bounce">💰</div>
+        <div className="absolute top-40 right-1/3 text-green-400 text-3xl animate-pulse">💵</div>
+        <div className="absolute bottom-32 left-1/2 text-yellow-300 text-xl animate-spin">🪙</div>
+        <div className="absolute top-60 left-1/6 text-emerald-400 text-2xl animate-bounce animation-delay-1000ms">💎</div>
+        <div className="absolute bottom-40 right-1/4 text-orange-400 text-2xl animate-pulse">🎰</div>
+      </div>
+
+      <div className="max-w-6xl mx-auto space-y-6 relative z-10">
+        {/* Header with Enhanced Styling */}
         <div className="text-center space-y-4">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            MoneyAgar.io
-          </h1>
-          <p className="text-xl text-gray-200">
-            The ultimate real-money battle arena game
+          <div className="relative">
+            <h1 className="text-7xl font-black bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent drop-shadow-2xl">
+              MoneyAgar.io
+            </h1>
+            <div className="absolute -top-2 -right-2 text-4xl animate-spin">🎯</div>
+            <div className="absolute -top-2 -left-2 text-4xl animate-pulse">⚡</div>
+          </div>
+          <p className="text-2xl text-gray-100 font-bold drop-shadow-lg">
+            🔥 The ULTIMATE Real-Money Battle Arena! 🔥
           </p>
+          <div className="flex justify-center gap-4 text-lg font-semibold">
+            <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-full animate-pulse">
+              💸 LIVE CASH PRIZES!
+            </span>
+            <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full animate-bounce">
+              🚀 EAT OR BE EATEN!
+            </span>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
