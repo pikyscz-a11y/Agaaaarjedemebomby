@@ -123,48 +123,24 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
   const handleStartGame = async () => {
     if (!playerName.trim()) {
       toast({
-        title: "Name Required",
-        description: "Please enter your player name",
+        title: "Error", 
+        description: "Please enter your warrior name",
         variant: "destructive",
       });
       return;
     }
 
-    setIsRegistering(true);
-    try {
-      // Register or get existing player
-      const registeredPlayer = await playerAPI.register(playerName.trim());
-      
-      setPlayer(prev => ({
-        ...prev,
-        id: registeredPlayer.id,
-        name: registeredPlayer.name,
-        virtualMoney: registeredPlayer.virtualMoney,
-        realMoney: registeredPlayer.realMoney,
-        totalGames: registeredPlayer.totalGames,
-        bestScore: registeredPlayer.bestScore,
-        wins: registeredPlayer.wins,
-        totalKills: registeredPlayer.totalKills
-      }));
-
+    if (!player.id) {
       toast({
-        title: "Welcome!",
-        description: `Starting ${selectedMode} mode...`,
-      });
-
-      // Pass the registered player directly to avoid state timing issues
-      onStartGame(selectedMode, registeredPlayer);
-      
-    } catch (error) {
-      console.error('Failed to register player:', error);
-      toast({
-        title: "Registration Failed",
-        description: "Please try again",
+        title: "Error",
+        description: "Player not registered yet, please wait...",
         variant: "destructive",
       });
-    } finally {
-      setIsRegistering(false);
+      return;
     }
+
+    // Player is already registered, just start the game
+    onStartGame(selectedMode, player);
   };
 
   return (
