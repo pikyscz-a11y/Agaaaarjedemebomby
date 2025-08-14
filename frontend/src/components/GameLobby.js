@@ -212,7 +212,10 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
                   </label>
                   <Input
                     value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
+                    onChange={(e) => {
+                      console.log('Input changed:', e.target.value);
+                      setPlayerName(e.target.value);
+                    }}
                     placeholder="Enter your battle name..."
                     className="bg-gray-700 border-2 border-yellow-500 text-white text-lg font-bold placeholder-gray-400 focus:border-orange-500"
                     maxLength={15}
