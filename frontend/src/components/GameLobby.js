@@ -28,6 +28,8 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
   const [tournaments, setTournaments] = useState([]);
   const [recentMatches, setRecentMatches] = useState([]);
   const [platformStats, setPlatformStats] = useState({});
+  const [showShop, setShowShop] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   
   const gameModes = [
     {
