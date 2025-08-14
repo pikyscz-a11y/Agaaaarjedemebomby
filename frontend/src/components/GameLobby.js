@@ -362,6 +362,28 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
             </Card>
           </div>
         </div>
+        
+        {/* Shop Modal */}
+        {showShop && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-auto m-4">
+              <Shop 
+                player={player}
+                setPlayer={setPlayer}
+                onClose={() => setShowShop(false)}
+              />
+            </div>
+          </div>
+        )}
+        
+        {/* Payment Modal */}
+        {showPaymentModal && (
+          <PaymentModal 
+            player={player}
+            setPlayer={setPlayer}
+            onClose={() => setShowPaymentModal(false)}
+          />
+        )}
       </div>
     </div>
   );
