@@ -190,6 +190,7 @@ class GameManager:
             return 0
             
         game = self.active_games[game_id]
+        config = self.GAME_CONFIGS.get(game.gameMode, self.GAME_CONFIGS['classic'])
         points_earned = 0
         
         # Remove consumed food and calculate points
@@ -202,11 +203,12 @@ class GameManager:
                 
         game.food = remaining_food
         
-        # Generate new food to maintain count (less frequently)
+        # Generate new food based on game mode configuration
         new_food_count = len(food_ids)
         if new_food_count > 0:
-            # Only generate 50% of consumed food to reduce spawn rate
-            new_food_count = max(1, new_food_count // 2)
+            # Use mode-specific replacement rate
+            replacement_rate = config['FOOD_REPLACEMENT_RATE']
+            new_food_count = max(1, int(new_food_count * replacement_rate))
             new_food = self._generate_food(new_food_count)
             game.food.extend(new_food)
             
