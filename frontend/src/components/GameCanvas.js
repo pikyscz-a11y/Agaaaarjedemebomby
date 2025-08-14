@@ -306,16 +306,22 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     checkCollisions();
   }, [player, calculateSize, setPlayer, checkCollisions, sendPositionUpdate, lastUpdateTime, lastPositionUpdate, updateParticles, updateCameraShake]);
 
-  // Render function
+  // Enhanced render function with visual effects
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // Apply camera shake
+    ctx.save();
+    ctx.translate(cameraShake.x, cameraShake.y);
+    
+    ctx.clearRect(-cameraShake.x, -cameraShake.y, CANVAS_WIDTH + Math.abs(cameraShake.x), CANVAS_HEIGHT + Math.abs(cameraShake.y));
 
-    // Draw grid background
-    ctx.strokeStyle = '#e5e7eb';
+    // Draw animated grid background
+    const time = Date.now() * 0.001;
+    ctx.strokeStyle = `hsla(240, 20%, 85%, ${0.3 + 0.1 * Math.sin(time)})`;
     ctx.lineWidth = 1;
     for (let x = 0; x <= CANVAS_WIDTH; x += 50) {
       ctx.beginPath();
@@ -330,61 +336,112 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
       ctx.stroke();
     }
 
-    // Draw food
-    gameState.food.forEach(food => {
-      ctx.fillStyle = food.color;
+    // Draw player trail
+    if (playerTrail.length > 1) {
+      ctx.strokeStyle = `${player.color}40`;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(food.x, food.y, FOOD_SIZE, 0, 2 * Math.PI);
+      ctx.moveTo(playerTrail[0].x, playerTrail[0].y);
+      for (let i = 1; i < playerTrail.length; i++) {
+        ctx.lineTo(playerTrail[i].x, playerTrail[i].y);
+      }
+      ctx.stroke();
+    }
+
+    // Draw food with pulsing effect
+    gameState.food.forEach(food => {
+      const pulse = 1 + 0.2 * Math.sin(time * 3 + food.x * 0.01);
+      ctx.fillStyle = food.color;
+      ctx.shadowColor = food.color;
+      ctx.shadowBlur = 8 * pulse;
+      ctx.beginPath();
+      ctx.arc(food.x, food.y, FOOD_SIZE * pulse, 0, 2 * Math.PI);
       ctx.fill();
+      ctx.shadowBlur = 0;
     });
 
-    // Draw power-ups
+    // Draw power-ups with glow effect
     gameState.powerUps.forEach(powerUp => {
+      const glow = 1 + 0.3 * Math.sin(time * 2 + powerUp.x * 0.02);
       ctx.fillStyle = powerUp.color;
+      ctx.shadowColor = powerUp.color;
+      ctx.shadowBlur = 15 * glow;
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(powerUp.x, powerUp.y, powerUp.size, 0, 2 * Math.PI);
+      ctx.arc(powerUp.x, powerUp.y, powerUp.size * glow, 0, 2 * Math.PI);
       ctx.fill();
       ctx.stroke();
+      ctx.shadowBlur = 0;
     });
 
-    // Draw other players
+    // Draw other players with enhanced visuals
     gameState.otherPlayers.forEach(otherPlayer => {
       const size = calculateSize(otherPlayer.money);
+      const isBot = otherPlayer.playerId.startsWith('bot_');
+      
+      // Add subtle glow for bots
+      if (isBot) {
+        ctx.shadowColor = otherPlayer.color;
+        ctx.shadowBlur = 5;
+      }
+      
       ctx.fillStyle = otherPlayer.color;
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = isBot ? '#ffffff60' : '#fff';
+      ctx.lineWidth = isBot ? 1 : 2;
       ctx.beginPath();
       ctx.arc(otherPlayer.x, otherPlayer.y, size, 0, 2 * Math.PI);
       ctx.fill();
       ctx.stroke();
+      ctx.shadowBlur = 0;
 
-      // Draw name
-      ctx.fillStyle = '#000';
-      ctx.font = '12px Inter, sans-serif';
+      // Draw name with better styling
+      ctx.fillStyle = isBot ? '#ffffff80' : '#000';
+      ctx.font = isBot ? '10px Inter, sans-serif' : '12px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(otherPlayer.name, otherPlayer.x, otherPlayer.y + 4);
     });
 
-    // Draw player
+    // Draw particles
+    particles.forEach(particle => {
+      ctx.fillStyle = particle.color;
+      ctx.globalAlpha = particle.life;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, 2, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    // Draw player with enhanced effects
     if (player.isAlive) {
       const size = calculateSize(player.money);
+      const pulse = 1 + 0.05 * Math.sin(time * 4);
+      
+      // Player glow
+      ctx.shadowColor = player.color;
+      ctx.shadowBlur = 10;
+      
       ctx.fillStyle = player.color;
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(player.x, player.y, size, 0, 2 * Math.PI);
+      ctx.arc(player.x, player.y, size * pulse, 0, 2 * Math.PI);
       ctx.fill();
       ctx.stroke();
+      ctx.shadowBlur = 0;
 
-      // Draw player name
-      ctx.fillStyle = '#000';
+      // Draw player name with glow
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 3;
+      ctx.fillStyle = '#fff';
       ctx.font = 'bold 14px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(player.name, player.x, player.y + 4);
+      ctx.shadowBlur = 0;
     }
-  }, [player, gameState, calculateSize]);
+    
+    ctx.restore();
+  }, [player, gameState, calculateSize, cameraShake, playerTrail, particles]);
 
   // Animation loop
   useEffect(() => {
