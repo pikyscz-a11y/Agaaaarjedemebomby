@@ -91,6 +91,35 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
     loadLobbyData();
   }, []);
 
+  // Register player when name is entered
+  useEffect(() => {
+    const registerPlayer = async () => {
+      if (playerName.trim() && playerName.trim().length >= 3 && !player.id) {
+        try {
+          const registeredPlayer = await playerAPI.register(playerName.trim());
+          setPlayer(prev => ({
+            ...prev,
+            id: registeredPlayer.id,
+            name: registeredPlayer.name,
+            virtualMoney: registeredPlayer.virtualMoney,
+            realMoney: registeredPlayer.realMoney,
+            totalGames: registeredPlayer.totalGames,
+            bestScore: registeredPlayer.bestScore,
+            wins: registeredPlayer.wins,
+            totalKills: registeredPlayer.totalKills
+          }));
+          console.log('Player registered:', registeredPlayer);
+        } catch (error) {
+          console.error('Failed to register player:', error);
+        }
+      }
+    };
+
+    // Debounce registration to avoid too many API calls
+    const timeoutId = setTimeout(registerPlayer, 500);
+    return () => clearTimeout(timeoutId);
+  }, [playerName, player.id, setPlayer]);
+
   const handleStartGame = async () => {
     if (!playerName.trim()) {
       toast({
