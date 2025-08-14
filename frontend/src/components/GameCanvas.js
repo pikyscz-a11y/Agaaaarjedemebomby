@@ -203,6 +203,24 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
       }
     }
 
+    // Check player vs player collisions on server
+    if (gameId && player.id) {
+      try {
+        const collisionResult = await gameAPI.checkPlayerCollisions(gameId, player.id);
+        if (collisionResult.kills > 0) {
+          console.log(`Player killed ${collisionResult.kills} opponents, gained $${collisionResult.money_gained}`);
+        }
+        if (collisionResult.deaths > 0) {
+          setPlayer(prev => ({
+            ...prev,
+            isAlive: false
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to check player collisions:', error);
+      }
+    }
+
     // Update player stats locally
     if (pointsEarned > 0) {
       // Add subtle screen shake effect for food consumption
