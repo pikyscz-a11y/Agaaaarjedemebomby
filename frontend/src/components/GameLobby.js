@@ -216,25 +216,25 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
                   </div>
                 </div>
                 
-                {/* Action Buttons */}
-                <div className="flex gap-3 mt-4">
+                {/* Action Buttons with Enhanced Styling */}
+                <div className="flex gap-3 mt-6">
                   <Button 
                     onClick={() => setShowShop(true)}
                     variant="outline"
-                    className="flex-1 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 border-2 border-purple-400 text-white hover:from-purple-700 hover:to-pink-700 font-bold text-lg py-3 transform hover:scale-105 transition-all"
                     disabled={!player.id}
                   >
-                    <ShoppingBag className="w-4 h-4 mr-2" />
-                    Shop
+                    <ShoppingBag className="w-5 h-5 mr-2" />
+                    🛒 Epic Shop
                   </Button>
                   <Button 
                     onClick={() => setShowPaymentModal(true)}
                     variant="outline"
-                    className="flex-1 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 border-2 border-green-400 text-white hover:from-green-700 hover:to-emerald-700 font-bold text-lg py-3 transform hover:scale-105 transition-all"
                     disabled={!player.id}
                   >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Add Money
+                    <DollarSign className="w-5 h-5 mr-2" />
+                    💸 Add Cash
                   </Button>
                 </div>
               </CardContent>
