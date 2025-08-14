@@ -292,5 +292,57 @@ class GameManager:
         }
         return mode_limits.get(game_mode, 20)
 
+    async def apply_player_effects(self, player_id: str, inventory_effects: Dict) -> Dict:
+        """Apply player's equipped item effects"""
+        effects = {
+            'speedMultiplier': 1.0,
+            'valueMultiplier': 1.0,
+            'damageReduction': 0.0,
+            'scoreMultiplier': 1.0,
+            'invincible': False,
+            'vipStatus': False
+        }
+        
+        # Apply effects from equipped items
+        for item in inventory_effects:
+            if item.get('isEquipped'):
+                item_effects = item.get('effects', {})
+                for effect_key, effect_value in item_effects.items():
+                    if effect_key in effects:
+                        if effect_key in ['speedMultiplier', 'valueMultiplier', 'scoreMultiplier']:
+                            effects[effect_key] *= effect_value
+                        elif effect_key == 'damageReduction':
+                            effects[effect_key] = max(effects[effect_key], effect_value)
+                        else:
+                            effects[effect_key] = effect_value
+        
+        return effects
+
+    async def update_arena_size(self, game_id: str) -> bool:
+        """Update arena size for battle royale mode"""
+        if game_id not in self.active_games:
+            return False
+            
+        game = self.active_games[game_id]
+        config = self.GAME_CONFIGS.get(game.gameMode, self.GAME_CONFIGS['classic'])
+        
+        if not config.get('ARENA_SHRINK'):
+            return False
+            
+        # Calculate shrinking based on game time
+        current_time = datetime.now()
+        game_duration = (current_time - game.startTime).total_seconds()
+        shrink_start = config['SPECIAL_RULES'].get('shrink_start_time', 300)
+        
+        if game_duration > shrink_start:
+            # Arena starts shrinking after specified time
+            shrink_rate = config['SPECIAL_RULES'].get('shrink_rate', 10)
+            shrink_amount = (game_duration - shrink_start) * shrink_rate
+            
+            # Apply shrinking logic (this would be handled in frontend)
+            return True
+            
+        return False
+
 # Global game manager instance
 game_manager = GameManager()
