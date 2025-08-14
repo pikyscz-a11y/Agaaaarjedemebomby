@@ -189,6 +189,28 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
                     <div className="text-sm text-gray-400">Games Played</div>
                   </div>
                 </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-3 mt-4">
+                  <Button 
+                    onClick={() => setShowShop(true)}
+                    variant="outline"
+                    className="flex-1 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+                    disabled={!player.id}
+                  >
+                    <ShoppingBag className="w-4 h-4 mr-2" />
+                    Shop
+                  </Button>
+                  <Button 
+                    onClick={() => setShowPaymentModal(true)}
+                    variant="outline"
+                    className="flex-1 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+                    disabled={!player.id}
+                  >
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    Add Money
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
