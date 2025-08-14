@@ -122,10 +122,19 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
 
   // Update game state from server
   const updateGameStateFromServer = useCallback(async () => {
-    if (!gameId) return;
+    if (!gameId || !player.id) {
+      console.log('Cannot update game state - missing gameId or player.id', { gameId, playerId: player.id });
+      return;
+    }
     
     try {
       const serverGameState = await gameAPI.getGameState(gameId);
+      console.log('Game state updated from server', { 
+        gameId, 
+        playersCount: serverGameState.players?.length, 
+        foodCount: serverGameState.food?.length,
+        powerUpsCount: serverGameState.powerUps?.length 
+      });
       
       setGameState(prev => ({
         ...prev,
@@ -134,6 +143,11 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
         powerUps: serverGameState.powerUps || [],
         gameStats: serverGameState.gameStats || {}
       }));
+      
+      // Update other players including bots
+      if (serverGameState.players) {
+        console.log('Other players in game:', serverGameState.players.filter(p => p.playerId !== player.id).map(p => ({ name: p.name, isBot: p.playerId.startsWith('bot_') })));
+      }
     } catch (error) {
       console.error('Failed to update game state:', error);
     }
