@@ -133,7 +133,10 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
   }, [playerName, player.id, setPlayer]);
 
   const handleStartGame = async () => {
+    console.log('handleStartGame called!', { playerName, playerId: player.id });
+    
     if (!playerName.trim()) {
+      console.log('No player name provided');
       toast({
         title: "Error", 
         description: "Please enter your warrior name",
@@ -143,6 +146,7 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
     }
 
     if (!player.id) {
+      console.log('Player not registered, player.id missing');
       toast({
         title: "Error",
         description: "Player not registered yet, please wait...",
@@ -151,6 +155,7 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
       return;
     }
 
+    console.log('Calling onStartGame...');
     // Player is already registered, just start the game
     onStartGame(selectedMode, player);
   };
