@@ -164,6 +164,12 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
 
     // Update player stats locally
     if (pointsEarned > 0) {
+      // Add screen shake effect for food consumption
+      setCameraShake({ x: Math.random() * 4 - 2, y: Math.random() * 4 - 2, intensity: 5 });
+      
+      // Create particles for visual feedback
+      setParticles(prev => [...prev, ...createFoodParticles(player.x, player.y, pointsEarned)]);
+      
       setPlayer(prev => ({
         ...prev,
         virtualMoney: prev.virtualMoney + pointsEarned,
