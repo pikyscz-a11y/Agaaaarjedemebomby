@@ -4,6 +4,8 @@ import { Card } from './ui/card';
 import { gameAPI } from '../services/api';
 
 const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
+  console.log('GameCanvas rendering', { gameId, playerName: player.name, playerAlive: player.isAlive });
+  
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const [keys, setKeys] = useState({});
