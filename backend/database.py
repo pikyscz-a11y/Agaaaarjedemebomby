@@ -38,6 +38,17 @@ class Database:
             await self.db.transactions.create_index("timestamp")
             await self.db.transactions.create_index("status")
             
+            # Shop collection indexes
+            await self.db.shopItems.create_index("category")
+            await self.db.shopItems.create_index("isAvailable")
+            await self.db.shopItems.create_index("price")
+            await self.db.shopItems.create_index("rarity")
+            
+            # Player inventory indexes
+            await self.db.playerInventory.create_index("playerId")
+            await self.db.playerInventory.create_index("itemId")
+            await self.db.playerInventory.create_index("isEquipped")
+            
         except Exception as e:
             print(f"Warning: Could not create indexes: {e}")
     
