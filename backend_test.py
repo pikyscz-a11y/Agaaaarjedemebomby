@@ -731,9 +731,9 @@ class MoneyAgarAPITester:
         virtual_items = shop_data['items']
         affordable_item = None
         
-        # Find an affordable item (assuming player has some virtual money)
+        # Find an affordable item (players start with 250 virtual money)
         for item in virtual_items:
-            if item['price'] <= 500:  # Reasonable price for testing
+            if item['price'] <= 200:  # Should be affordable with starting balance
                 affordable_item = item
                 break
                 
@@ -757,7 +757,7 @@ class MoneyAgarAPITester:
         # Step 3: Test insufficient funds (try to buy expensive item)
         expensive_item = None
         for item in virtual_items:
-            if item['price'] > 10000:  # Very expensive item
+            if item['price'] > 1000:  # Very expensive item
                 expensive_item = item
                 break
                 
