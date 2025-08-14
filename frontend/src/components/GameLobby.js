@@ -94,21 +94,33 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
   // Register player when name is entered
   useEffect(() => {
     const registerPlayer = async () => {
+      console.log('RegisterPlayer check:', { 
+        playerName: playerName.trim(), 
+        length: playerName.trim().length, 
+        hasPlayerId: !!player.id 
+      });
+      
       if (playerName.trim() && playerName.trim().length >= 3 && !player.id) {
+        console.log('Attempting to register player:', playerName.trim());
         try {
           const registeredPlayer = await playerAPI.register(playerName.trim());
-          setPlayer(prev => ({
-            ...prev,
-            id: registeredPlayer.id,
-            name: registeredPlayer.name,
-            virtualMoney: registeredPlayer.virtualMoney,
-            realMoney: registeredPlayer.realMoney,
-            totalGames: registeredPlayer.totalGames,
-            bestScore: registeredPlayer.bestScore,
-            wins: registeredPlayer.wins,
-            totalKills: registeredPlayer.totalKills
-          }));
-          console.log('Player registered:', registeredPlayer);
+          console.log('Registration successful:', registeredPlayer);
+          
+          setPlayer(prev => {
+            const newPlayer = {
+              ...prev,
+              id: registeredPlayer.id,
+              name: registeredPlayer.name,
+              virtualMoney: registeredPlayer.virtualMoney,
+              realMoney: registeredPlayer.realMoney,
+              totalGames: registeredPlayer.totalGames,
+              bestScore: registeredPlayer.bestScore,
+              wins: registeredPlayer.wins,
+              totalKills: registeredPlayer.totalKills
+            };
+            console.log('Setting new player state:', newPlayer);
+            return newPlayer;
+          });
         } catch (error) {
           console.error('Failed to register player:', error);
         }
