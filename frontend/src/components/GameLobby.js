@@ -123,10 +123,8 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
         description: `Starting ${selectedMode} mode...`,
       });
 
-      // Call onStartGame with the registered player data directly
-      setTimeout(() => {
-        onStartGame(selectedMode);
-      }, 100); // Small delay to ensure state update
+      // Pass the registered player directly to avoid state timing issues
+      onStartGame(selectedMode, registeredPlayer);
       
     } catch (error) {
       console.error('Failed to register player:', error);
