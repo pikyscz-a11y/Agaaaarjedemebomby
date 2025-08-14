@@ -256,10 +256,10 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
 
     if (!player.isAlive) return;
 
-    // Update player position
+    // Update player position with smooth movement
     setPlayer(prev => {
       const size = calculateSize(prev.money);
-      const speed = Math.max(MOVE_SPEED - size * 0.05, 1);
+      const speed = Math.max(MOVE_SPEED - size * 0.03, 2); // Dynamic speed based on size
       
       let newX = prev.x;
       let newY = prev.y;
@@ -269,12 +269,33 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
         newY += prev.direction.y * speed;
       }
 
-      // Boundary checking
-      newX = Math.max(size, Math.min(CANVAS_WIDTH - size, newX));
-      newY = Math.max(size, Math.min(CANVAS_HEIGHT - size, newY));
+      // Boundary checking with smooth bounce
+      if (newX < size) {
+        newX = size;
+        prev.direction && (prev.direction.x *= -0.5);
+      }
+      if (newX > CANVAS_WIDTH - size) {
+        newX = CANVAS_WIDTH - size;
+        prev.direction && (prev.direction.x *= -0.5);
+      }
+      if (newY < size) {
+        newY = size;
+        prev.direction && (prev.direction.y *= -0.5);
+      }
+      if (newY > CANVAS_HEIGHT - size) {
+        newY = CANVAS_HEIGHT - size;
+        prev.direction && (prev.direction.y *= -0.5);
+      }
+
+      // Update trail
+      setPlayerTrail(trail => [...trail.slice(-TRAIL_LENGTH), { x: newX, y: newY, size: size }]);
 
       return { ...prev, x: newX, y: newY };
     });
+
+    // Update effects
+    updateParticles();
+    updateCameraShake();
 
     // Send position update to server periodically
     if (now - lastPositionUpdate > POSITION_UPDATE_INTERVAL) {
