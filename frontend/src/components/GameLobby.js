@@ -351,7 +351,10 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
                 </div>
 
                 <Button
-                  onClick={handleStartGame}
+                  onClick={() => {
+                    console.log('START BATTLE clicked!');
+                    handleStartGame();
+                  }}
                   disabled={isRegistering}
                   className="w-full mt-8 h-16 text-2xl font-black bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 hover:from-red-700 hover:via-orange-700 hover:to-yellow-700 border-2 border-yellow-400 shadow-2xl transform hover:scale-105 transition-all"
                 >
