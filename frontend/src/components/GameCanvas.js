@@ -304,7 +304,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     }
 
     checkCollisions();
-  }, [player, calculateSize, setPlayer, checkCollisions, sendPositionUpdate, lastUpdateTime, lastPositionUpdate]);
+  }, [player, calculateSize, setPlayer, checkCollisions, sendPositionUpdate, lastUpdateTime, lastPositionUpdate, updateParticles, updateCameraShake]);
 
   // Render function
   const render = useCallback(() => {
