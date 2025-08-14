@@ -317,6 +317,8 @@ class GameManager:
         game = self.active_games[game_id]
         bots = self.game_bots[game_id]
         
+        print(f"Updating {len(bots)} bots for game {game_id}")  # Debug log
+        
         for bot in bots:
             # Update bot behavior and position
             human_players = [p for p in game.players if not p.playerId.startswith('bot_')]
@@ -333,8 +335,11 @@ class GameManager:
                     
                     # Remove consumed food and add new food
                     game.food = [f for f in game.food if f.id != consumed_food.id]
-                    new_food = self._generate_food(1)
-                    game.food.extend(new_food)
+                    config = self.GAME_CONFIGS.get(game.gameMode, self.GAME_CONFIGS['classic'])
+                    replacement_rate = config['FOOD_REPLACEMENT_RATE']
+                    if random.random() < replacement_rate:  # Only replace based on rate
+                        new_food = self._generate_food(1)
+                        game.food.extend(new_food)
             
             # Update bot in game players list
             for i, player in enumerate(game.players):
