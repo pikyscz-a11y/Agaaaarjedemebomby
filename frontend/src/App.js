@@ -13,6 +13,8 @@ function App() {
   const [selectedMode, setSelectedMode] = useState('classic');
   const [currentGameId, setCurrentGameId] = useState(null);
   
+  console.log('App render', { gameStarted, selectedMode, currentGameId });
+  
   // Player state
   const [player, setPlayer] = useState({
     id: null,
