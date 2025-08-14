@@ -361,7 +361,10 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Shop System Implementation"
+    - "Advanced Game Modes Enhancement"
+    - "Food Respawn Rate Fix"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
