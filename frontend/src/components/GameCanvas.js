@@ -47,7 +47,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     };
   }, []);
 
-  // Mouse movement for direction
+  // Mouse movement for direction with smooth interpolation
   const handleMouseMove = useCallback((e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -61,11 +61,18 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
     if (distance > 0) {
+      // Smooth movement towards mouse
+      const directionX = deltaX / distance;
+      const directionY = deltaY / distance;
+      
       setPlayer(prev => ({
         ...prev,
         targetX: mouseX,
         targetY: mouseY,
-        direction: { x: deltaX / distance, y: deltaY / distance }
+        direction: { 
+          x: prev.direction ? prev.direction.x * (1 - SMOOTH_FACTOR) + directionX * SMOOTH_FACTOR : directionX,
+          y: prev.direction ? prev.direction.y * (1 - SMOOTH_FACTOR) + directionY * SMOOTH_FACTOR : directionY
+        }
       }));
     }
   }, [player.x, player.y, setPlayer]);
