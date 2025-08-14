@@ -318,7 +318,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     checkCollisions();
   }, [lastUpdateTime, lastPositionUpdate, updateParticles, updateCameraShake, sendPositionUpdate, checkCollisions]);
 
-  renderRef.current = useCallback(() => {
+  renderRef.current = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -456,7 +456,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     }
     
     ctx.restore();
-  }, [player, gameState, calculateSize, cameraShake, playerTrail, particles]);
+  };
 
   // Animation loop with stable reference
   useEffect(() => {
