@@ -300,7 +300,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     });
   }, [player.isAlive, calculateSize, setPlayer]);
 
-  gameLoopRef.current = useCallback(() => {
+  gameLoopRef.current = () => {
     const now = Date.now();
     
     if (now - lastUpdateTime > 16) { // 60 FPS cap
@@ -316,7 +316,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     }
 
     checkCollisions();
-  }, [lastUpdateTime, lastPositionUpdate, updateParticles, updateCameraShake, sendPositionUpdate, checkCollisions]);
+  };
 
   renderRef.current = () => {
     const canvas = canvasRef.current;
