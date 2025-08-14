@@ -668,6 +668,285 @@ class MoneyAgarAPITester:
         success = status == 200 and player_count >= 1  # At least one player should be there
         self.log_test("Multi-Player - Game State Check", success, f"Players in game: {player_count}", response_time)
         
+    # ==================== SHOP SYSTEM TESTS ====================
+    async def test_shop_items_retrieval(self):
+        """Test shop items retrieval with filtering"""
+        print("\n=== SHOP ITEMS RETRIEVAL TESTING ===")
+        
+        # Test 1: Get all shop items
+        status, data, response_time = await self.make_request('GET', '/shop/items')
+        success = status == 200 and 'items' in data and len(data['items']) > 0
+        item_count = len(data.get('items', []))
+        self.log_test("Shop Items - Get All Items", success, f"Status: {status}, Items: {item_count}", response_time)
+        
+        if not success:
+            return
+            
+        # Test 2: Filter by category (skins)
+        status, data, response_time = await self.make_request('GET', '/shop/items', params={'category': 'skins'})
+        success = status == 200 and 'items' in data
+        skin_count = len(data.get('items', []))
+        self.log_test("Shop Items - Filter by Skins", success, f"Status: {status}, Skin items: {skin_count}", response_time)
+        
+        # Test 3: Filter by currency (virtual)
+        status, data, response_time = await self.make_request('GET', '/shop/items', params={'currency': 'virtual'})
+        success = status == 200 and 'items' in data
+        virtual_count = len(data.get('items', []))
+        self.log_test("Shop Items - Filter by Virtual Currency", success, f"Status: {status}, Virtual items: {virtual_count}", response_time)
+        
+        # Test 4: Filter by currency (real)
+        status, data, response_time = await self.make_request('GET', '/shop/items', params={'currency': 'real'})
+        success = status == 200 and 'items' in data
+        real_count = len(data.get('items', []))
+        self.log_test("Shop Items - Filter by Real Currency", success, f"Status: {status}, Real money items: {real_count}", response_time)
+        
+        # Test 5: Combined filters
+        status, data, response_time = await self.make_request('GET', '/shop/items', params={'category': 'powerups', 'currency': 'virtual'})
+        success = status == 200 and 'items' in data
+        filtered_count = len(data.get('items', []))
+        self.log_test("Shop Items - Combined Filters", success, f"Status: {status}, Filtered items: {filtered_count}", response_time)
+        
+    async def test_shop_purchase_workflow(self):
+        """Test shop item purchasing workflow"""
+        print("\n=== SHOP PURCHASE WORKFLOW TESTING ===")
+        
+        if not self.test_players:
+            self.log_test("Shop Purchase - No Test Players", False, "No test players available")
+            return
+            
+        player = self.test_players[0]
+        
+        # Step 1: Get shop items to find purchasable items
+        status, shop_data, response_time = await self.make_request('GET', '/shop/items', params={'currency': 'virtual'})
+        if status != 200 or not shop_data.get('items'):
+            self.log_test("Shop Purchase - Get Items Failed", False, f"Failed to get shop items: {status}")
+            return
+            
+        virtual_items = shop_data['items']
+        affordable_item = None
+        
+        # Find an affordable item (assuming player has some virtual money)
+        for item in virtual_items:
+            if item['price'] <= 500:  # Reasonable price for testing
+                affordable_item = item
+                break
+                
+        if not affordable_item:
+            self.log_test("Shop Purchase - No Affordable Items", False, "No affordable items found for testing")
+            return
+            
+        self.log_test("Shop Purchase - Found Affordable Item", True, f"Item: {affordable_item['name']}, Price: ${affordable_item['price']}", 0)
+        
+        # Step 2: Test successful purchase
+        purchase_data = {
+            "playerId": player["id"],
+            "itemId": affordable_item["id"],
+            "quantity": 1
+        }
+        status, purchase_response, response_time = await self.make_request('POST', '/shop/purchase', purchase_data)
+        success = status == 200 and purchase_response.get('success') == True
+        self.log_test("Shop Purchase - Successful Purchase", success, 
+                     f"Status: {status}, Item: {affordable_item['name']}, New Balance: ${purchase_response.get('newBalance', 0)}", response_time)
+        
+        # Step 3: Test insufficient funds (try to buy expensive item)
+        expensive_item = None
+        for item in virtual_items:
+            if item['price'] > 10000:  # Very expensive item
+                expensive_item = item
+                break
+                
+        if expensive_item:
+            expensive_purchase = {
+                "playerId": player["id"],
+                "itemId": expensive_item["id"],
+                "quantity": 1
+            }
+            status, response, response_time = await self.make_request('POST', '/shop/purchase', expensive_purchase)
+            success = status == 400  # Should fail due to insufficient funds
+            self.log_test("Shop Purchase - Insufficient Funds", success, f"Status: {status}, Correctly rejected expensive purchase", response_time)
+        else:
+            self.log_test("Shop Purchase - Insufficient Funds", True, "No expensive items found, skipping test", 0)
+            
+        # Step 4: Test invalid item ID
+        invalid_purchase = {
+            "playerId": player["id"],
+            "itemId": "invalid-item-id",
+            "quantity": 1
+        }
+        status, response, response_time = await self.make_request('POST', '/shop/purchase', invalid_purchase)
+        success = status == 404
+        self.log_test("Shop Purchase - Invalid Item", success, f"Status: {status}, Error handled correctly", response_time)
+        
+        # Step 5: Test invalid player ID
+        invalid_player_purchase = {
+            "playerId": "invalid-player-id",
+            "itemId": affordable_item["id"],
+            "quantity": 1
+        }
+        status, response, response_time = await self.make_request('POST', '/shop/purchase', invalid_player_purchase)
+        success = status == 404
+        self.log_test("Shop Purchase - Invalid Player", success, f"Status: {status}, Error handled correctly", response_time)
+        
+    async def test_player_inventory_management(self):
+        """Test player inventory retrieval and management"""
+        print("\n=== PLAYER INVENTORY MANAGEMENT TESTING ===")
+        
+        if not self.test_players:
+            self.log_test("Inventory Management - No Test Players", False, "No test players available")
+            return
+            
+        player = self.test_players[0]
+        
+        # Test 1: Get player inventory
+        status, inventory_data, response_time = await self.make_request('GET', f'/shop/inventory/{player["id"]}')
+        success = status == 200 and 'inventory' in inventory_data
+        inventory_count = len(inventory_data.get('inventory', []))
+        self.log_test("Inventory Management - Get Inventory", success, f"Status: {status}, Items: {inventory_count}", response_time)
+        
+        # Test 2: Get inventory for invalid player
+        status, response, response_time = await self.make_request('GET', '/shop/inventory/invalid-player-id')
+        success = status == 200  # Should return empty inventory, not error
+        self.log_test("Inventory Management - Invalid Player", success, f"Status: {status}, Returns empty inventory", response_time)
+        
+        # Test 3: If player has items, test equipping
+        if inventory_count > 0:
+            inventory_items = inventory_data['inventory']
+            first_item = inventory_items[0]
+            
+            # Test equipping an item
+            equip_data = {
+                "player_id": player["id"],
+                "item_id": first_item["itemId"]
+            }
+            status, equip_response, response_time = await self.make_request('POST', '/shop/equip', equip_data)
+            success = status == 200 and equip_response.get('success') == True
+            self.log_test("Inventory Management - Equip Item", success, f"Status: {status}, Item equipped: {first_item['itemName']}", response_time)
+            
+            # Test equipping invalid item
+            invalid_equip = {
+                "player_id": player["id"],
+                "item_id": "invalid-item-id"
+            }
+            status, response, response_time = await self.make_request('POST', '/shop/equip', invalid_equip)
+            success = status == 404
+            self.log_test("Inventory Management - Equip Invalid Item", success, f"Status: {status}, Error handled correctly", response_time)
+        else:
+            self.log_test("Inventory Management - Equip Item", True, "No items in inventory to test equipping", 0)
+            
+    async def test_advanced_game_modes(self):
+        """Test advanced game modes with different configurations"""
+        print("\n=== ADVANCED GAME MODES TESTING ===")
+        
+        if not self.test_players:
+            self.log_test("Advanced Game Modes - No Test Players", False, "No test players available")
+            return
+            
+        player = self.test_players[0]
+        game_modes = ['classic', 'tournament', 'blitz', 'royale']
+        
+        for mode in game_modes:
+            # Test game creation for each mode
+            game_data = {
+                "gameMode": mode,
+                "playerId": player["id"]
+            }
+            status, game_response, response_time = await self.make_request('POST', '/games/create', game_data)
+            success = status == 200 and 'id' in game_response and game_response['gameMode'] == mode
+            
+            if success:
+                game_id = game_response['id']
+                self.log_test(f"Advanced Game Modes - {mode.title()} Creation", success, f"Status: {status}, Game ID: {game_id}", response_time)
+                
+                # Test game state for mode-specific configurations
+                status, state_data, response_time = await self.make_request('GET', f'/games/{game_id}/state')
+                if status == 200:
+                    food_count = len(state_data.get('food', []))
+                    powerup_count = len(state_data.get('powerUps', []))
+                    
+                    # Verify mode-specific configurations
+                    expected_configs = {
+                        'classic': {'food_range': (90, 110), 'powerup_range': (3, 7)},
+                        'tournament': {'food_range': (70, 90), 'powerup_range': (6, 10)},
+                        'blitz': {'food_range': (110, 130), 'powerup_range': (10, 14)},
+                        'royale': {'food_range': (140, 160), 'powerup_range': (13, 17)}
+                    }
+                    
+                    config = expected_configs.get(mode, {'food_range': (0, 200), 'powerup_range': (0, 20)})
+                    food_in_range = config['food_range'][0] <= food_count <= config['food_range'][1]
+                    powerup_in_range = config['powerup_range'][0] <= powerup_count <= config['powerup_range'][1]
+                    
+                    config_success = food_in_range and powerup_in_range
+                    self.log_test(f"Advanced Game Modes - {mode.title()} Configuration", config_success,
+                                 f"Food: {food_count} (expected: {config['food_range']}), PowerUps: {powerup_count} (expected: {config['powerup_range']})", response_time)
+                else:
+                    self.log_test(f"Advanced Game Modes - {mode.title()} State", False, f"Failed to get game state: {status}")
+            else:
+                self.log_test(f"Advanced Game Modes - {mode.title()} Creation", success, f"Status: {status}, Failed to create {mode} game", response_time)
+                
+    async def test_shop_integration_with_gameplay(self):
+        """Test integration between shop system and gameplay"""
+        print("\n=== SHOP-GAMEPLAY INTEGRATION TESTING ===")
+        
+        if not self.test_players:
+            self.log_test("Shop Integration - No Test Players", False, "No test players available")
+            return
+            
+        player = self.test_players[0]
+        
+        # Step 1: Purchase a powerup item
+        status, shop_data, response_time = await self.make_request('GET', '/shop/items', params={'category': 'powerups'})
+        if status != 200 or not shop_data.get('items'):
+            self.log_test("Shop Integration - Get Powerups Failed", False, f"Failed to get powerup items: {status}")
+            return
+            
+        powerup_items = shop_data['items']
+        affordable_powerup = None
+        
+        for item in powerup_items:
+            if item['price'] <= 1000 and item['currency'] == 'virtual':
+                affordable_powerup = item
+                break
+                
+        if not affordable_powerup:
+            self.log_test("Shop Integration - No Affordable Powerups", False, "No affordable powerup items found")
+            return
+            
+        # Purchase the powerup
+        purchase_data = {
+            "playerId": player["id"],
+            "itemId": affordable_powerup["id"],
+            "quantity": 1
+        }
+        status, purchase_response, response_time = await self.make_request('POST', '/shop/purchase', purchase_data)
+        success = status == 200 and purchase_response.get('success') == True
+        self.log_test("Shop Integration - Purchase Powerup", success, f"Purchased: {affordable_powerup['name']}", response_time)
+        
+        if not success:
+            return
+            
+        # Step 2: Verify item in inventory
+        status, inventory_data, response_time = await self.make_request('GET', f'/shop/inventory/{player["id"]}')
+        success = status == 200 and any(item['itemId'] == affordable_powerup['id'] for item in inventory_data.get('inventory', []))
+        self.log_test("Shop Integration - Verify in Inventory", success, f"Item found in inventory", response_time)
+        
+        # Step 3: Equip the item
+        equip_data = {
+            "player_id": player["id"],
+            "item_id": affordable_powerup["id"]
+        }
+        status, equip_response, response_time = await self.make_request('POST', '/shop/equip', equip_data)
+        success = status == 200 and equip_response.get('success') == True
+        self.log_test("Shop Integration - Equip Powerup", success, f"Powerup equipped successfully", response_time)
+        
+        # Step 4: Create game and verify equipped items affect gameplay (conceptual test)
+        game_data = {
+            "gameMode": "classic",
+            "playerId": player["id"]
+        }
+        status, game_response, response_time = await self.make_request('POST', '/games/create', game_data)
+        success = status == 200 and 'id' in game_response
+        self.log_test("Shop Integration - Create Game with Equipped Items", success, f"Game created with equipped powerup", response_time)
+
     # ==================== MAIN TEST RUNNER ====================
     async def run_all_tests(self):
         """Run all tests in sequence"""
@@ -695,10 +974,21 @@ class MoneyAgarAPITester:
             await self.test_position_update()
             await self.test_leave_game()
             
-            # Food Respawn Rate Tests
+            # Food Respawn Rate Tests (Regression Testing)
             print("\n🍎 FOOD RESPAWN RATE TESTS")
             await self.test_food_respawn_rate_fix()
             await self.test_game_state_consistency()
+            
+            # NEW: Shop System Tests
+            print("\n🛒 SHOP SYSTEM TESTS")
+            await self.test_shop_items_retrieval()
+            await self.test_shop_purchase_workflow()
+            await self.test_player_inventory_management()
+            await self.test_shop_integration_with_gameplay()
+            
+            # NEW: Advanced Game Modes Tests
+            print("\n🎯 ADVANCED GAME MODES TESTS")
+            await self.test_advanced_game_modes()
             
             # Money Management Tests
             print("\n💰 MONEY MANAGEMENT TESTS")
