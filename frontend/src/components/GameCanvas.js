@@ -236,34 +236,6 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
         score: prev.score + pointsEarned
       }));
     }
-
-    // Check other player collisions (eating smaller players)
-    gameState.otherPlayers.forEach(otherPlayer => {
-      const dx = player.x - otherPlayer.x;
-      const dy = player.y - otherPlayer.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const otherSize = calculateSize(otherPlayer.money);
-      
-      if (distance < playerSize + otherSize) {
-        if (playerSize > otherSize * 1.2) {
-          // Player eats other player
-          const earnedMoney = Math.floor(otherPlayer.money * 0.8);
-          setPlayer(prev => ({
-            ...prev,
-            virtualMoney: prev.virtualMoney + earnedMoney,
-            money: prev.money + earnedMoney,
-            score: prev.score + earnedMoney,
-            kills: prev.kills + 1
-          }));
-        } else if (otherSize > playerSize * 1.2) {
-          // Other player eats player (game over)
-          setPlayer(prev => ({
-            ...prev,
-            isAlive: false
-          }));
-        }
-      }
-    });
   }, [player, gameState.food, gameState.otherPlayers, gameState.powerUps, calculateSize, setPlayer, gameId]);
 
   // Game loop
