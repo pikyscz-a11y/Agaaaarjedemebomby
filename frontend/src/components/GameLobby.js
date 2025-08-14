@@ -318,7 +318,10 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
                     return (
                       <div
                         key={mode.id}
-                        onClick={() => setSelectedMode(mode.id)}
+                        onClick={() => {
+                          console.log('Mode clicked:', mode.id);
+                          setSelectedMode(mode.id);
+                        }}
                         className={`p-6 rounded-xl border-3 cursor-pointer transition-all transform hover:scale-105 ${
                           selectedMode === mode.id
                             ? 'border-yellow-400 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 shadow-xl'
