@@ -74,8 +74,9 @@ export const gameAPI = {
   },
 
   consumePowerUp: async (gameId, playerId, powerUpIds) => {
-    const response = await apiClient.post(`/games/${gameId}/consume-powerup`, powerUpIds, {
-      params: { player_id: playerId }
+    const response = await apiClient.post(`/games/${gameId}/consume-powerup`, {
+      power_up_ids: powerUpIds,
+      player_id: playerId
     });
     return response.data;
   }
