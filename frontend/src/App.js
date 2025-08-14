@@ -48,7 +48,10 @@ function App() {
   });
 
   const handleStartGame = async (mode) => {
+    console.log('handleStartGame called', { mode, playerId: player.id, playerName: player.name });
+    
     if (!player.id) {
+      console.error('Player not registered - missing player.id');
       toast({
         title: "Error",
         description: "Player not registered",
@@ -58,8 +61,10 @@ function App() {
     }
 
     try {
+      console.log('Creating game with gameAPI.createGame...');
       // Create or join game
       const game = await gameAPI.createGame(mode, player.id);
+      console.log('Game created successfully:', game);
       
       setCurrentGameId(game.id);
       setSelectedMode(mode);
@@ -87,6 +92,7 @@ function App() {
         }
       }));
       
+      console.log('Setting gameStarted to true...');
       setGameStarted(true);
       
       toast({
