@@ -407,11 +407,12 @@ class GameManager:
         # Generate new food based on game mode configuration
         new_food_count = len(food_ids)
         if new_food_count > 0:
-            # Use mode-specific replacement rate
+            # Use mode-specific replacement rate (proper calculation without forcing minimum)
             replacement_rate = config['FOOD_REPLACEMENT_RATE']
-            new_food_count = max(1, int(new_food_count * replacement_rate))
-            new_food = self._generate_food(new_food_count)
-            game.food.extend(new_food)
+            new_food_count = int(new_food_count * replacement_rate)
+            if new_food_count > 0:  # Only generate if result is > 0
+                new_food = self._generate_food(new_food_count)
+                game.food.extend(new_food)
             
         return points_earned
     
