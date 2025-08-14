@@ -10,6 +10,42 @@ class GameManager:
         self.active_games: Dict[str, Game] = {}
         self.player_to_game: Dict[str, str] = {}  # playerId -> gameId
         
+        # Enhanced game configurations for different modes
+        self.GAME_CONFIGS = {
+            'classic': {
+                'FOOD_COUNT': 100,
+                'POWERUP_COUNT': 5,
+                'FOOD_REPLACEMENT_RATE': 0.5,
+                'MATCH_DURATION': None,  # Unlimited
+                'ARENA_SHRINK': False,
+                'SPECIAL_RULES': {}
+            },
+            'tournament': {
+                'FOOD_COUNT': 80,
+                'POWERUP_COUNT': 8,
+                'FOOD_REPLACEMENT_RATE': 0.4,
+                'MATCH_DURATION': 900,  # 15 minutes
+                'ARENA_SHRINK': False,
+                'SPECIAL_RULES': {'elimination_threshold': 10}
+            },
+            'blitz': {
+                'FOOD_COUNT': 120,
+                'POWERUP_COUNT': 12,
+                'FOOD_REPLACEMENT_RATE': 0.8,  # Fast-paced
+                'MATCH_DURATION': 300,  # 5 minutes
+                'ARENA_SHRINK': False,
+                'SPECIAL_RULES': {'speed_multiplier': 1.5, 'score_multiplier': 2.0}
+            },
+            'royale': {
+                'FOOD_COUNT': 150,
+                'POWERUP_COUNT': 15,
+                'FOOD_REPLACEMENT_RATE': 0.3,
+                'MATCH_DURATION': 1200,  # 20 minutes
+                'ARENA_SHRINK': True,
+                'SPECIAL_RULES': {'shrink_start_time': 300, 'shrink_rate': 10}
+            }
+        }
+        
     async def create_game(self, game_mode: str, player_id: str, player_name: str) -> Game:
         """Create a new game and add the player"""
         game = Game(
