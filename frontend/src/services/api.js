@@ -67,8 +67,9 @@ export const gameAPI = {
   },
 
   consumeFood: async (gameId, playerId, foodIds) => {
-    const response = await apiClient.post(`/games/${gameId}/consume-food`, foodIds, {
-      params: { player_id: playerId }
+    const response = await apiClient.post(`/games/${gameId}/consume-food`, {
+      food_ids: foodIds,
+      player_id: playerId
     });
     return response.data;
   },
