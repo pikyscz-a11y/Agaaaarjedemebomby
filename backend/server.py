@@ -423,6 +423,12 @@ async def check_player_collisions(game_id: str, request_data: CollisionCheckRequ
     collision_results = await game_manager.process_player_collisions(game_id, player_id)
     return collision_results
 
+@api_router.post("/games/{game_id}/players/{player_id}/collisions") 
+async def check_player_collisions_alt(game_id: str, player_id: str):
+    """Alternative collision endpoint format"""
+    collision_results = await game_manager.process_player_collisions(game_id, player_id)
+    return collision_results
+
 @api_router.post("/shop/equip")
 async def equip_item(player_id: str, item_id: str):
     """Equip an item from player's inventory"""
