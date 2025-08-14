@@ -178,41 +178,41 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Game Setup */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Player Setup */}
-            <Card className="bg-slate-800 border-slate-700">
+            {/* Player Setup with Enhanced Styling */}
+            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-yellow-500 shadow-2xl">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Player Setup
+                <CardTitle className="text-white flex items-center gap-2 text-2xl">
+                  <Users className="w-6 h-6 text-yellow-400" />
+                  🎮 Player Setup
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-300 mb-2 block">
-                    Player Name
+                  <label className="text-sm font-bold text-yellow-400 mb-2 block">
+                    💀 WARRIOR NAME 💀
                   </label>
                   <Input
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    placeholder="Enter your name"
-                    className="bg-slate-700 border-slate-600 text-white"
+                    placeholder="Enter your battle name..."
+                    className="bg-gray-700 border-2 border-yellow-500 text-white text-lg font-bold placeholder-gray-400 focus:border-orange-500"
                     maxLength={15}
                     disabled={isRegistering}
                   />
                 </div>
                 
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-green-400">${player.virtualMoney || 250}</div>
-                    <div className="text-sm text-gray-400">Virtual Money</div>
+                <div className="grid grid-cols-3 gap-4 text-center p-4 bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg border border-yellow-500">
+                  <div className="transform hover:scale-105 transition-transform">
+                    <div className="text-3xl font-black text-green-400 drop-shadow-lg">${player.virtualMoney || 250}</div>
+                    <div className="text-sm text-green-300 font-bold">💰 Virtual Cash</div>
                   </div>
-                  <div>
-                    <div className="text-2xl font-bold text-blue-400">${player.realMoney || 0}</div>
-                    <div className="text-sm text-gray-400">Real Money</div>
+                  <div className="transform hover:scale-105 transition-transform">
+                    <div className="text-3xl font-black text-blue-400 drop-shadow-lg">${player.realMoney || 0}</div>
+                    <div className="text-sm text-blue-300 font-bold">💵 Real Money</div>
                   </div>
-                  <div>
-                    <div className="text-2xl font-bold text-purple-400">{player.totalGames || 0}</div>
-                    <div className="text-sm text-gray-400">Games Played</div>
+                  <div className="transform hover:scale-105 transition-transform">
+                    <div className="text-3xl font-black text-purple-400 drop-shadow-lg">{player.totalGames || 0}</div>
+                    <div className="text-sm text-purple-300 font-bold">🎯 Battles Won</div>
                   </div>
                 </div>
                 
