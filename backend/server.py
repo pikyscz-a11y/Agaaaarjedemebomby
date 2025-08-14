@@ -409,9 +409,9 @@ async def get_player_inventory(player_id: str):
         raise HTTPException(status_code=500, detail="Failed to get inventory")
 
 @api_router.post("/games/{game_id}/check-collisions")
-async def check_player_collisions(game_id: str, request_data: dict):
+async def check_player_collisions(game_id: str, request_data: CollisionCheckRequest):
     """Check and process player vs player collisions"""
-    player_id = request_data.get("player_id")
+    player_id = request_data.player_id
     
     if not player_id:
         raise HTTPException(status_code=400, detail="Missing player_id")
