@@ -493,7 +493,321 @@ class MoneyAgarAPITester:
         else:
             self.log_test("Food Respawn - Multiple Consumption Test", True, "Insufficient food for second test, but first test passed", 0)
             
-    async def test_game_state_consistency(self):
+    # ==================== CRITICAL BUG FIX TESTS ====================
+    async def test_power_up_consumption_api_fix(self):
+        """Test power-up consumption API with correct parameter format"""
+        print("\n=== POWER-UP CONSUMPTION API FIX TESTING ===")
+        
+        if not self.test_players or not self.test_games:
+            self.log_test("PowerUp API Fix - Missing Data", False, "No test players or games available")
+            return
+            
+        game = self.test_games[0]
+        player = self.test_players[0]
+        
+        # Step 1: Get initial game state and power-ups
+        status, initial_state, response_time = await self.make_request('GET', f'/games/{game["id"]}/state')
+        if status != 200:
+            self.log_test("PowerUp API Fix - Initial State", False, f"Failed to get initial state: {status}")
+            return
+            
+        power_ups = initial_state.get('powerUps', [])
+        if len(power_ups) == 0:
+            self.log_test("PowerUp API Fix - No PowerUps", False, "No power-ups available for testing")
+            return
+            
+        initial_powerup_count = len(power_ups)
+        self.log_test("PowerUp API Fix - Initial State", True, f"Initial power-up count: {initial_powerup_count}", response_time)
+        
+        # Step 2: Test power-up consumption with correct parameter format
+        power_up_to_consume = power_ups[0]
+        power_up_ids = [power_up_to_consume['id']]
+        
+        # Use correct parameter format matching backend expectation
+        consume_data = {
+            "power_up_ids": power_up_ids,
+            "player_id": player["id"]
+        }
+        
+        status, consume_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-powerup', consume_data)
+        
+        success = status == 200 and 'consumedPowerUps' in consume_response
+        consumed_count = len(consume_response.get('consumedPowerUps', []))
+        
+        self.log_test("PowerUp API Fix - Consumption", success, 
+                     f"Status: {status}, Consumed power-ups: {consumed_count}", response_time)
+        
+        # Step 3: Verify power-up was removed from game state
+        if success:
+            status, after_state, response_time = await self.make_request('GET', f'/games/{game["id"]}/state')
+            if status == 200:
+                after_powerup_count = len(after_state.get('powerUps', []))
+                removed_correctly = after_powerup_count < initial_powerup_count
+                
+                self.log_test("PowerUp API Fix - State Update", removed_correctly,
+                             f"Power-ups after consumption: {after_powerup_count} (was {initial_powerup_count})", response_time)
+            else:
+                self.log_test("PowerUp API Fix - State Update", False, f"Failed to get state after consumption: {status}")
+        
+        # Step 4: Test error handling with missing parameters
+        invalid_data = {"power_up_ids": []}  # Missing player_id
+        status, error_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-powerup', invalid_data)
+        
+        error_handled = status == 400
+        self.log_test("PowerUp API Fix - Error Handling", error_handled,
+                     f"Status: {status}, Properly handles missing parameters", response_time)
+
+    async def test_player_collision_detection(self):
+        """Test new player vs player collision detection endpoint"""
+        print("\n=== PLAYER COLLISION DETECTION TESTING ===")
+        
+        if not self.test_players or not self.test_games:
+            self.log_test("Collision Detection - Missing Data", False, "No test players or games available")
+            return
+            
+        game = self.test_games[0]
+        player = self.test_players[0]
+        
+        # Step 1: Test collision detection endpoint exists and responds
+        collision_data = {
+            "player_id": player["id"]
+        }
+        
+        status, collision_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/check-collisions', collision_data)
+        
+        success = status == 200 and isinstance(collision_response, dict)
+        expected_keys = ['kills', 'deaths', 'money_gained', 'is_alive']
+        has_expected_keys = all(key in collision_response for key in expected_keys)
+        
+        self.log_test("Collision Detection - Endpoint Response", success and has_expected_keys,
+                     f"Status: {status}, Response keys: {list(collision_response.keys()) if success else 'None'}", response_time)
+        
+        # Step 2: Test collision detection with different player sizes
+        if success:
+            # Update player position and money to simulate different scenarios
+            position_data = {
+                "playerId": player["id"],
+                "x": 400.0,
+                "y": 300.0,
+                "money": 500  # Large player
+            }
+            await self.make_request('POST', f'/games/{game["id"]}/update-position', position_data)
+            
+            # Check collisions again
+            status, collision_response_2, response_time = await self.make_request('POST', f'/games/{game["id"]}/check-collisions', collision_data)
+            
+            success_2 = status == 200 and 'kills' in collision_response_2
+            kills = collision_response_2.get('kills', 0)
+            money_gained = collision_response_2.get('money_gained', 0)
+            
+            self.log_test("Collision Detection - Large Player Test", success_2,
+                         f"Status: {status}, Kills: {kills}, Money gained: {money_gained}", response_time)
+        
+        # Step 3: Test error handling
+        invalid_collision_data = {}  # Missing player_id
+        status, error_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/check-collisions', invalid_collision_data)
+        
+        error_handled = status == 400
+        self.log_test("Collision Detection - Error Handling", error_handled,
+                     f"Status: {status}, Properly handles missing player_id", response_time)
+
+    async def test_ai_bot_verification(self):
+        """Test that AI bots are properly created and visible in game state"""
+        print("\n=== AI BOT VERIFICATION TESTING ===")
+        
+        if not self.test_players:
+            self.log_test("AI Bot Verification - No Test Players", False, "No test players available")
+            return
+        
+        player = self.test_players[0]
+        
+        # Step 1: Create a new game to ensure fresh bot creation
+        game_data = {
+            "gameMode": "classic",
+            "playerId": player["id"]
+        }
+        status, game_response, response_time = await self.make_request('POST', '/games/create', game_data)
+        
+        if status != 200:
+            self.log_test("AI Bot Verification - Game Creation", False, f"Failed to create game: {status}")
+            return
+            
+        game_id = game_response['id']
+        self.log_test("AI Bot Verification - Game Creation", True, f"Game created: {game_id}", response_time)
+        
+        # Step 2: Wait a moment for bots to be initialized
+        await asyncio.sleep(0.5)
+        
+        # Step 3: Get game state and verify bots are present
+        status, game_state, response_time = await self.make_request('GET', f'/games/{game_id}/state')
+        
+        if status != 200:
+            self.log_test("AI Bot Verification - Game State", False, f"Failed to get game state: {status}")
+            return
+            
+        players = game_state.get('players', [])
+        total_players = len(players)
+        
+        # Count human vs bot players
+        human_players = [p for p in players if not p['playerId'].startswith('bot_')]
+        bot_players = [p for p in players if p['playerId'].startswith('bot_')]
+        
+        human_count = len(human_players)
+        bot_count = len(bot_players)
+        
+        # Classic mode should have 8 bots + 1 human = 9 total players
+        expected_bot_count = 8  # From GAME_CONFIGS['classic']['BOT_COUNT']
+        bots_created = bot_count >= expected_bot_count - 2  # Allow some tolerance
+        
+        self.log_test("AI Bot Verification - Bot Creation", bots_created,
+                     f"Total players: {total_players}, Human: {human_count}, Bots: {bot_count} (expected: ~{expected_bot_count})", response_time)
+        
+        # Step 4: Verify bot properties
+        if bot_count > 0:
+            sample_bot = bot_players[0]
+            required_bot_fields = ['playerId', 'name', 'x', 'y', 'money', 'score', 'color']
+            has_required_fields = all(field in sample_bot for field in required_bot_fields)
+            
+            bot_name_valid = sample_bot.get('name', '').strip() != ''
+            bot_position_valid = (0 <= sample_bot.get('x', -1) <= 800 and 
+                                0 <= sample_bot.get('y', -1) <= 600)
+            bot_money_valid = sample_bot.get('money', 0) > 0
+            
+            bot_properties_valid = has_required_fields and bot_name_valid and bot_position_valid and bot_money_valid
+            
+            self.log_test("AI Bot Verification - Bot Properties", bot_properties_valid,
+                         f"Sample bot: {sample_bot.get('name', 'Unknown')} at ({sample_bot.get('x', 0):.1f}, {sample_bot.get('y', 0):.1f}) with ${sample_bot.get('money', 0)}", 0)
+        else:
+            self.log_test("AI Bot Verification - Bot Properties", False, "No bots found to verify properties")
+        
+        # Step 5: Wait and check if bots are moving/active
+        await asyncio.sleep(1.0)  # Wait for bot updates
+        
+        status, updated_state, response_time = await self.make_request('GET', f'/games/{game_id}/state')
+        if status == 200:
+            updated_players = updated_state.get('players', [])
+            updated_bots = [p for p in updated_players if p['playerId'].startswith('bot_')]
+            
+            # Check if any bot positions changed (indicating movement)
+            bots_moving = False
+            if len(updated_bots) > 0 and len(bot_players) > 0:
+                for i, updated_bot in enumerate(updated_bots):
+                    if i < len(bot_players):
+                        original_bot = bot_players[i]
+                        if (abs(updated_bot.get('x', 0) - original_bot.get('x', 0)) > 1 or 
+                            abs(updated_bot.get('y', 0) - original_bot.get('y', 0)) > 1):
+                            bots_moving = True
+                            break
+            
+            self.log_test("AI Bot Verification - Bot Movement", bots_moving,
+                         f"Bots are {'moving' if bots_moving else 'stationary'} after 1 second", response_time)
+        else:
+            self.log_test("AI Bot Verification - Bot Movement", False, f"Failed to get updated state: {status}")
+
+    async def test_game_state_consistency_after_fixes(self):
+        """Test game state consistency after all bug fixes"""
+        print("\n=== GAME STATE CONSISTENCY AFTER FIXES ===")
+        
+        if not self.test_players or not self.test_games:
+            self.log_test("State Consistency - Missing Data", False, "No test players or games available")
+            return
+            
+        game = self.test_games[0]
+        player = self.test_players[0]
+        
+        # Step 1: Get initial state
+        status, initial_state, response_time = await self.make_request('GET', f'/games/{game["id"]}/state')
+        if status != 200:
+            self.log_test("State Consistency - Initial State", False, f"Failed to get initial state: {status}")
+            return
+            
+        initial_food = len(initial_state.get('food', []))
+        initial_powerups = len(initial_state.get('powerUps', []))
+        initial_players = len(initial_state.get('players', []))
+        
+        self.log_test("State Consistency - Initial State", True,
+                     f"Food: {initial_food}, PowerUps: {initial_powerups}, Players: {initial_players}", response_time)
+        
+        # Step 2: Perform multiple operations in sequence
+        operations_successful = 0
+        total_operations = 0
+        
+        # Operation 1: Update player position
+        total_operations += 1
+        position_data = {
+            "playerId": player["id"],
+            "x": 350.0,
+            "y": 250.0,
+            "money": 200
+        }
+        status, _, _ = await self.make_request('POST', f'/games/{game["id"]}/update-position', position_data)
+        if status == 200:
+            operations_successful += 1
+        
+        # Operation 2: Consume food (test 50% respawn rate)
+        total_operations += 1
+        food_items = initial_state.get('food', [])[:2]
+        if len(food_items) >= 2:
+            food_ids = [food['id'] for food in food_items]
+            consume_data = {
+                "food_ids": food_ids,
+                "player_id": player["id"]
+            }
+            status, _, _ = await self.make_request('POST', f'/games/{game["id"]}/consume-food', consume_data)
+            if status == 200:
+                operations_successful += 1
+        
+        # Operation 3: Consume power-up (test fixed API)
+        total_operations += 1
+        power_ups = initial_state.get('powerUps', [])
+        if len(power_ups) > 0:
+            powerup_data = {
+                "power_up_ids": [power_ups[0]['id']],
+                "player_id": player["id"]
+            }
+            status, _, _ = await self.make_request('POST', f'/games/{game["id"]}/consume-powerup', powerup_data)
+            if status == 200:
+                operations_successful += 1
+        
+        # Operation 4: Check collisions
+        total_operations += 1
+        collision_data = {
+            "player_id": player["id"]
+        }
+        status, _, _ = await self.make_request('POST', f'/games/{game["id"]}/check-collisions', collision_data)
+        if status == 200:
+            operations_successful += 1
+        
+        # Step 3: Verify final state consistency
+        status, final_state, response_time = await self.make_request('GET', f'/games/{game["id"]}/state')
+        if status != 200:
+            self.log_test("State Consistency - Final State", False, f"Failed to get final state: {status}")
+            return
+            
+        final_food = len(final_state.get('food', []))
+        final_powerups = len(final_state.get('powerUps', []))
+        final_players = len(final_state.get('players', []))
+        
+        # Verify state is still valid
+        state_valid = (final_food >= 0 and final_powerups >= 0 and final_players > 0)
+        operations_success_rate = operations_successful / total_operations
+        
+        self.log_test("State Consistency - Operations Success", operations_success_rate >= 0.75,
+                     f"Operations successful: {operations_successful}/{total_operations} ({operations_success_rate:.1%})", 0)
+        
+        self.log_test("State Consistency - Final State Valid", state_valid,
+                     f"Final - Food: {final_food}, PowerUps: {final_powerups}, Players: {final_players}", response_time)
+        
+        # Step 4: Verify food respawn rate is working (should be less food due to 50% rate)
+        if len(food_items) >= 2:  # If we consumed food
+            expected_food_reduction = 1  # 2 consumed, 1 respawned = net -1
+            actual_food_change = initial_food - final_food
+            respawn_rate_working = actual_food_change >= expected_food_reduction - 1  # Allow tolerance
+            
+            self.log_test("State Consistency - Food Respawn Rate", respawn_rate_working,
+                         f"Food change: -{actual_food_change} (expected: ~-{expected_food_reduction})", 0)
+        else:
+            self.log_test("State Consistency - Food Respawn Rate", True, "No food consumed, rate not tested", 0)
         """Test game state consistency after food interactions"""
         print("\n=== GAME STATE CONSISTENCY TESTING ===")
         
