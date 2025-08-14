@@ -254,15 +254,15 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     }
   }, [player, gameState.food, gameState.otherPlayers, gameState.powerUps, calculateSize, setPlayer, gameId]);
 
-  // Game loop
-  const gameLoop = useCallback(() => {
-    const now = Date.now();
-    const deltaTime = now - lastUpdateTime;
-    setLastUpdateTime(now);
+  // Game loop with stable references
+  const gameLoopRef = useRef();
+  const renderRef = useRef();
+  const updatePlayerPositionRef = useRef();
 
+  // Create stable function for player position updates
+  updatePlayerPositionRef.current = useCallback(() => {
     if (!player.isAlive) return;
 
-    // Update player position with smooth movement
     setPlayer(prev => {
       const size = calculateSize(prev.money);
       const speed = Math.max(MOVE_SPEED - size * 0.03, 2); // Dynamic speed based on size
@@ -298,22 +298,27 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
 
       return { ...prev, x: newX, y: newY };
     });
+  }, [player.isAlive, calculateSize, setPlayer]);
 
-    // Update effects
-    updateParticles();
-    updateCameraShake();
+  gameLoopRef.current = useCallback(() => {
+    const now = Date.now();
+    
+    if (now - lastUpdateTime > 16) { // 60 FPS cap
+      updatePlayerPositionRef.current();
+      updateParticles();
+      updateCameraShake();
+      setLastUpdateTime(now);
+    }
 
-    // Send position update to server periodically
     if (now - lastPositionUpdate > POSITION_UPDATE_INTERVAL) {
       sendPositionUpdate();
       setLastPositionUpdate(now);
     }
 
     checkCollisions();
-  }, [player, calculateSize, setPlayer, checkCollisions, sendPositionUpdate, lastUpdateTime, lastPositionUpdate, updateParticles, updateCameraShake]);
+  }, [lastUpdateTime, lastPositionUpdate, updateParticles, updateCameraShake, sendPositionUpdate, checkCollisions]);
 
-  // Enhanced render function with visual effects
-  const render = useCallback(() => {
+  renderRef.current = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -386,24 +391,28 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
       const size = calculateSize(otherPlayer.money);
       const isBot = otherPlayer.playerId.startsWith('bot_');
       
-      // Add subtle glow for bots
+      // Add distinctive visual for bots - brighter outline
       if (isBot) {
         ctx.shadowColor = otherPlayer.color;
-        ctx.shadowBlur = 5;
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+      } else {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 0;
       }
       
       ctx.fillStyle = otherPlayer.color;
-      ctx.strokeStyle = isBot ? '#ffffff60' : '#fff';
-      ctx.lineWidth = isBot ? 1 : 2;
       ctx.beginPath();
       ctx.arc(otherPlayer.x, otherPlayer.y, size, 0, 2 * Math.PI);
       ctx.fill();
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Draw name with better styling
-      ctx.fillStyle = isBot ? '#ffffff80' : '#000';
-      ctx.font = isBot ? '10px Inter, sans-serif' : '12px Inter, sans-serif';
+      // Draw name with better styling for bots
+      ctx.fillStyle = isBot ? '#ffff00' : '#000';
+      ctx.font = isBot ? 'bold 11px Inter, sans-serif' : '12px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(otherPlayer.name, otherPlayer.x, otherPlayer.y + 4);
     });
@@ -449,22 +458,24 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     ctx.restore();
   }, [player, gameState, calculateSize, cameraShake, playerTrail, particles]);
 
-  // Animation loop
+  // Animation loop with stable reference
   useEffect(() => {
+    let animationId;
+    
     const animate = () => {
-      gameLoop();
-      render();
-      animationRef.current = requestAnimationFrame(animate);
+      gameLoopRef.current();
+      renderRef.current();
+      animationId = requestAnimationFrame(animate);
     };
-
-    animationRef.current = requestAnimationFrame(animate);
-
+    
+    animate();
+    
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      if (animationId) {
+        cancelAnimationFrame(animationId);
       }
     };
-  }, [gameLoop, render]);
+  }, []); // No dependencies - stable loop
 
   // Update game state from server periodically
   useEffect(() => {
