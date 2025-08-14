@@ -98,7 +98,9 @@ class FinalCleanupTester:
             success = status == 200 and 'id' in data
             if success:
                 self.test_players.append(data)
-            self.log_test(f"Setup Player - {player_data['name']}", success, f"Player ID: {data.get('id', 'None')}", response_time)
+                self.log_test(f"Setup Player - {player_data['name']}", success, f"Player ID: {data.get('id', 'None')}", response_time)
+            else:
+                self.log_test(f"Setup Player - {player_data['name']}", success, f"Status: {status}, Error: {data.get('error', data)}", response_time)
 
     # ==================== 1. CLEAN STATE VERIFICATION ====================
     async def test_clean_state_verification(self):
