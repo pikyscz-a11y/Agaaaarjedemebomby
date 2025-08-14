@@ -197,9 +197,20 @@ class GameManager:
         game.food = self._generate_food(config['FOOD_COUNT'])
         game.powerUps = self._generate_power_ups(config['POWERUP_COUNT'])
         
+        # Create AI bots for the game
+        bots = self._create_ai_bots(game.id, config['BOT_COUNT'])
+        self.game_bots[game.id] = bots
+        
+        # Add bots to game as players
+        for bot in bots:
+            game.players.append(bot.to_game_player())
+        
         # Store game
         self.active_games[game.id] = game
         self.player_to_game[player_id] = game.id
+        
+        # Start bot update loop
+        asyncio.create_task(self._bot_update_loop(game.id))
         
         return game
     
