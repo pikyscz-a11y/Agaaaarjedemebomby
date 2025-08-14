@@ -352,6 +352,31 @@ class GameManager:
                     game.players[i] = bot.to_game_player()
                     break
     
+    async def cleanup_inactive_games(self):
+        """Clean up games with no active players"""
+        games_to_remove = []
+        
+        for game_id, game in self.active_games.items():
+            # Check if game has any human players (non-bot players)
+            human_players = [p for p in game.players if not p.playerId.startswith('bot_')]
+            
+            if len(human_players) == 0:
+                games_to_remove.append(game_id)
+        
+        for game_id in games_to_remove:
+            print(f"Cleaning up inactive game: {game_id}")
+            # Remove from active games
+            del self.active_games[game_id]
+            # Remove bot data
+            if game_id in self.game_bots:
+                del self.game_bots[game_id]
+            # Clean up player-to-game mapping
+            players_to_remove = [pid for pid, gid in self.player_to_game.items() if gid == game_id]
+            for pid in players_to_remove:
+                del self.player_to_game[pid]
+        
+        return len(games_to_remove)
+
     async def get_game_state(self, game_id: str) -> Optional[GameState]:
         """Get current game state"""
         if game_id not in self.active_games:
