@@ -13,10 +13,12 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
   // Game constants
   const CANVAS_WIDTH = 800;
   const CANVAS_HEIGHT = 600;
-  const MOVE_SPEED = 3;
-  const MIN_SIZE = 10;
-  const FOOD_SIZE = 3;
-  const POSITION_UPDATE_INTERVAL = 100; // Update position every 100ms
+  const MOVE_SPEED = 4; // Increased base speed
+  const MIN_SIZE = 12; // Slightly larger min size
+  const FOOD_SIZE = 4; // Slightly larger food
+  const POSITION_UPDATE_INTERVAL = 50; // Faster updates for smoother gameplay
+  const SMOOTH_FACTOR = 0.15; // Smoothing factor for movement
+  const TRAIL_LENGTH = 8; // Trail effect length
 
   // Calculate player size based on money
   const calculateSize = useCallback((money) => {
