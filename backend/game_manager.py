@@ -523,7 +523,73 @@ class GameManager:
                         else:
                             effects[effect_key] = effect_value
         
-        return effects
+    async def process_player_collisions(self, game_id: str, player_id: str) -> dict:
+        """Process player vs player collisions"""
+        if game_id not in self.active_games:
+            return {"kills": 0, "deaths": 0, "money_gained": 0}
+        
+        game = self.active_games[game_id]
+        current_player = None
+        
+        # Find current player
+        for player in game.players:
+            if player.playerId == player_id:
+                current_player = player
+                break
+        
+        if not current_player:
+            return {"kills": 0, "deaths": 0, "money_gained": 0}
+        
+        current_size = self._calculate_size(current_player.money)
+        kills = 0
+        money_gained = 0
+        died = False
+        
+        # Check collisions with other players
+        remaining_players = []
+        for other_player in game.players:
+            if other_player.playerId == player_id:
+                remaining_players.append(other_player)
+                continue
+                
+            # Calculate distance
+            dx = current_player.x - other_player.x
+            dy = current_player.y - other_player.y
+            distance = math.sqrt(dx * dx + dy * dy)
+            other_size = self._calculate_size(other_player.money)
+            
+            # Check collision
+            if distance < current_size + other_size:
+                if current_size > other_size * 1.2:  # Current player eats other
+                    earned_money = int(other_player.money * 0.8)
+                    money_gained += earned_money
+                    kills += 1
+                    current_player.money += earned_money
+                    current_player.score += earned_money
+                    current_player.kills += 1
+                    # Don't add eaten player to remaining_players
+                elif other_size > current_size * 1.2:  # Other player eats current
+                    died = True
+                    current_player.isAlive = False
+                    break
+                else:
+                    remaining_players.append(other_player)
+            else:
+                remaining_players.append(other_player)
+        
+        # Update game players list
+        game.players = remaining_players
+        
+        return {
+            "kills": kills,
+            "deaths": 1 if died else 0,
+            "money_gained": money_gained,
+            "is_alive": not died
+        }
+    
+    def _calculate_size(self, money: int) -> float:
+        """Calculate player size based on money"""
+        return 12 + math.sqrt(money / 10)  # Same formula as frontend
 
     async def update_arena_size(self, game_id: str) -> bool:
         """Update arena size for battle royale mode"""
