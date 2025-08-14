@@ -188,3 +188,15 @@ class ShopPurchaseResponse(BaseModel):
     item: ShopItem
     newBalance: int
     message: Optional[str] = None
+
+# Food and Power-up consumption models
+class FoodConsumptionRequest(BaseModel):
+    food_ids: List[str]
+    player_id: str
+
+class PowerUpConsumptionRequest(BaseModel):
+    power_up_ids: List[str]
+    player_id: str
+
+class CollisionCheckRequest(BaseModel):
+    player_id: str
