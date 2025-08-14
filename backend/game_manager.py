@@ -307,6 +307,11 @@ class GameManager:
                 await asyncio.sleep(0.1)  # Update bots 10 times per second
             except Exception as e:
                 print(f"Bot update error for game {game_id}: {e}")
+                # Clean up inactive games
+                if game_id not in self.active_games:
+                    print(f"Cleaning up bot loop for inactive game {game_id}")
+                    if game_id in self.game_bots:
+                        del self.game_bots[game_id]
                 break
     
     async def _update_bots(self, game_id: str):
