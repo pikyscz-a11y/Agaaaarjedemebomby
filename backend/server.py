@@ -310,5 +310,105 @@ async def get_platform_stats():
         "totalPrizePool": 12456  # Mock data
     }
 
+# Shop Endpoints
+@api_router.get("/shop/items")
+async def get_shop_items(category: str = None, currency: str = None):
+    """Get shop items with optional filtering"""
+    try:
+        # Initialize shop if needed
+        await database.initialize_shop_items()
+        
+        items = await database.get_shop_items(category, currency)
+        return {"items": [item.dict() for item in items]}
+    except Exception as e:
+        logger.error(f"Error getting shop items: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get shop items")
+
+@api_router.post("/shop/purchase", response_model=ShopPurchaseResponse)
+async def purchase_shop_item(purchase_data: ShopPurchaseRequest):
+    """Purchase an item from the shop"""
+    try:
+        # Get player and item
+        player = await database.get_player(purchase_data.playerId)
+        if not player:
+            raise HTTPException(status_code=404, detail="Player not found")
+        
+        item = await database.get_shop_item(purchase_data.itemId)
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        total_cost = item.price * purchase_data.quantity
+        
+        # Check if player has enough money
+        if item.currency == "virtual":
+            if player.virtualMoney < total_cost:
+                raise HTTPException(status_code=400, detail="Insufficient virtual money")
+            new_balance = player.virtualMoney - total_cost
+            await database.update_player(purchase_data.playerId, {"virtualMoney": new_balance})
+        else:  # real money
+            if player.realMoney < total_cost:
+                raise HTTPException(status_code=400, detail="Insufficient real money")
+            new_balance = player.realMoney - total_cost
+            await database.update_player(purchase_data.playerId, {"realMoney": new_balance})
+        
+        # Add item to player's inventory
+        success = await database.purchase_item(
+            purchase_data.playerId, 
+            purchase_data.itemId,
+            purchase_data.quantity
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to add item to inventory")
+        
+        # Create transaction record
+        transaction = Transaction(
+            playerId=purchase_data.playerId,
+            type="shop_purchase",
+            amount=-total_cost,  # Negative because it's a purchase
+            transactionId=generate_transaction_id()
+        )
+        await database.create_transaction(transaction)
+        
+        logger.info(f"Shop purchase: {item.name} for player {player.name}")
+        
+        return ShopPurchaseResponse(
+            success=True,
+            transactionId=transaction.transactionId,
+            item=item,
+            newBalance=new_balance,
+            message=f"Successfully purchased {item.name}"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error purchasing item: {e}")
+        raise HTTPException(status_code=500, detail="Purchase failed")
+
+@api_router.get("/shop/inventory/{player_id}")
+async def get_player_inventory(player_id: str):
+    """Get player's inventory"""
+    try:
+        inventory = await database.get_player_inventory(player_id)
+        return {"inventory": [item.dict() for item in inventory]}
+    except Exception as e:
+        logger.error(f"Error getting player inventory: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get inventory")
+
+@api_router.post("/shop/equip")
+async def equip_item(player_id: str, item_id: str):
+    """Equip an item from player's inventory"""
+    try:
+        success = await database.equip_item(player_id, item_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Item not found in inventory")
+        return {"success": True, "message": "Item equipped successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error equipping item: {e}")
+        raise HTTPException(status_code=500, detail="Failed to equip item")
+
 # Include router in main app
 app.include_router(api_router)
