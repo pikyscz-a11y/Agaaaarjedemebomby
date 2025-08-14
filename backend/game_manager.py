@@ -48,6 +48,8 @@ class GameManager:
         
     async def create_game(self, game_mode: str, player_id: str, player_name: str) -> Game:
         """Create a new game and add the player"""
+        config = self.GAME_CONFIGS.get(game_mode, self.GAME_CONFIGS['classic'])
+        
         game = Game(
             gameMode=game_mode,
             maxPlayers=self._get_max_players(game_mode)
@@ -67,9 +69,9 @@ class GameManager:
         
         game.players.append(game_player)
         
-        # Generate initial game content
-        game.food = self._generate_food(100)
-        game.powerUps = self._generate_power_ups(5)
+        # Generate initial game content based on mode configuration
+        game.food = self._generate_food(config['FOOD_COUNT'])
+        game.powerUps = self._generate_power_ups(config['POWERUP_COUNT'])
         
         # Store game
         self.active_games[game.id] = game
