@@ -900,7 +900,7 @@ class MoneyAgarAPITester:
         player = self.test_players[0]
         
         # Step 1: Purchase a powerup item
-        status, shop_data, response_time = await self.make_request('GET', '/shop/items', params={'category': 'powerups'})
+        status, shop_data, response_time = await self.make_request('GET', '/shop/items', params={'category': 'powerups', 'currency': 'virtual'})
         if status != 200 or not shop_data.get('items'):
             self.log_test("Shop Integration - Get Powerups Failed", False, f"Failed to get powerup items: {status}")
             return
@@ -909,7 +909,7 @@ class MoneyAgarAPITester:
         affordable_powerup = None
         
         for item in powerup_items:
-            if item['price'] <= 1000 and item['currency'] == 'virtual':
+            if item['price'] <= 200 and item['currency'] == 'virtual':  # Affordable with starting balance
                 affordable_powerup = item
                 break
                 
