@@ -1,5 +1,5 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-from models import Player, Game, Transaction
+from models import Player, Game, Transaction, ShopItem, PlayerInventory
 from typing import Optional, List
 import os
 from datetime import datetime
