@@ -479,7 +479,11 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "PaymentModal Component Creation"
+    - "Shop System Frontend"
+    - "Game Modes Selection and Startup"
+    - "Integration Testing - Complete Player Journey"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
