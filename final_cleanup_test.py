@@ -89,8 +89,8 @@ class FinalCleanupTester:
         
         # Create test players
         test_player_data = [
-            {"name": "CleanupTestPlayer1", "email": "cleanup1@test.com"},
-            {"name": "CleanupTestPlayer2", "email": "cleanup2@test.com"}
+            {"name": "CleanupTest1", "email": "cleanup1@test.com"},
+            {"name": "CleanupTest2", "email": "cleanup2@test.com"}
         ]
         
         for player_data in test_player_data:
