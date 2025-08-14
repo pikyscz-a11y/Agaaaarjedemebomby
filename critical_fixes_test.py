@@ -83,8 +83,7 @@ class CriticalFixesTester:
         # Create test players
         for i in range(2):
             player_data = {
-                "name": f"CriticalTestPlayer{i+1}",
-                "email": f"criticaltest{i+1}@example.com"
+                "name": f"CriticalTestPlayer{i+1}"
             }
             status, data, response_time = await self.make_request('POST', '/players/register', player_data)
             if status == 200:
