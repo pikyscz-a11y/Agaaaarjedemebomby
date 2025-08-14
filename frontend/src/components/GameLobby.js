@@ -13,10 +13,13 @@ import {
   Zap,
   Crown,
   Target,
-  Timer
+  Timer,
+  ShoppingBag
 } from 'lucide-react';
 import { playerAPI, statsAPI } from '../services/api';
 import { toast } from '../hooks/use-toast';
+import Shop from './Shop';
+import PaymentModal from './PaymentModal';
 
 const GameLobby = ({ onStartGame, player, setPlayer }) => {
   const [playerName, setPlayerName] = useState(player.name || '');
