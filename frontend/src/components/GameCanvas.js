@@ -300,6 +300,12 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     });
   }, [player.isAlive, calculateSize, setPlayer]);
 
+  // Separate collision checking from main game loop to prevent excessive state updates
+  useEffect(() => {
+    const collisionInterval = setInterval(checkCollisions, 100); // Check collisions every 100ms instead of every frame
+    return () => clearInterval(collisionInterval);
+  }, [checkCollisions]);
+
   gameLoopRef.current = () => {
     const now = Date.now();
     
@@ -315,7 +321,7 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
       setLastPositionUpdate(now);
     }
 
-    checkCollisions();
+    // Removed checkCollisions() from here - now handled separately
   };
 
   renderRef.current = () => {
