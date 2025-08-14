@@ -16,7 +16,7 @@ async def test_critical_fixes():
         
         # Step 1: Register a player
         player_data = {
-            "name": "CriticalTestPlayer",
+            "name": "CriticalTest",
             "email": "critical@example.com"
         }
         async with session.post(f"{API_BASE}/players/register", json=player_data) as response:
