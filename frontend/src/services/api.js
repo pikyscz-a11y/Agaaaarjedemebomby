@@ -129,6 +129,39 @@ export const statsAPI = {
   }
 };
 
+// Shop API
+export const shopAPI = {
+  getItems: async (category = null, currency = null) => {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (currency) params.append('currency', currency);
+    
+    const response = await apiClient.get(`/shop/items?${params.toString()}`);
+    return response.data;
+  },
+
+  purchaseItem: async (playerId, itemId, quantity = 1) => {
+    const response = await apiClient.post('/shop/purchase', {
+      playerId,
+      itemId,
+      quantity
+    });
+    return response.data;
+  },
+
+  getInventory: async (playerId) => {
+    const response = await apiClient.get(`/shop/inventory/${playerId}`);
+    return response.data;
+  },
+
+  equipItem: async (playerId, itemId) => {
+    const response = await apiClient.post('/shop/equip', null, {
+      params: { player_id: playerId, item_id: itemId }
+    });
+    return response.data;
+  }
+};
+
 // Error handling interceptor
 apiClient.interceptors.response.use(
   (response) => response,
