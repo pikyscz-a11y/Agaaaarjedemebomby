@@ -492,12 +492,12 @@ class CriticalFixesTester:
         
         # Perform multiple operations
         operations = [
-            ('GET', f'/games/{game["id"]}/state'),
+            ('GET', f'/games/{game["id"]}/state', None),
             ('POST', f'/games/{game["id"]}/update-position', {
                 "playerId": player["id"], "x": 300, "y": 200, "money": 500
             }),
-            ('POST', f'/games/{game["id"]}/players/{player["id"]}/collisions'),
-            ('GET', '/stats/platform')
+            ('POST', f'/games/{game["id"]}/players/{player["id"]}/collisions', None),
+            ('GET', '/stats/platform', None)
         ]
         
         operation_success = 0
