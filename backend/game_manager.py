@@ -5,6 +5,125 @@ from typing import Dict, List, Optional
 from models import Game, GamePlayer, Food, PowerUp, GameState
 from datetime import datetime, timedelta
 
+class AIBot:
+    def __init__(self, bot_id: str, name: str, x: float, y: float):
+        self.bot_id = bot_id
+        self.name = name
+        self.x = x
+        self.y = y
+        self.money = random.randint(50, 200)
+        self.score = self.money
+        self.kills = random.randint(0, 5)
+        self.color = self._get_random_color()
+        self.target_x = x
+        self.target_y = y
+        self.speed = random.uniform(1.5, 3.5)
+        self.aggressiveness = random.uniform(0.2, 0.8)  # How aggressive the bot is
+        self.last_direction_change = datetime.now()
+        self.direction_change_interval = random.uniform(2, 5)  # Seconds
+        self.behavior = random.choice(['aggressive', 'defensive', 'neutral', 'feeder'])
+        
+    def _get_random_color(self) -> str:
+        colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#34495e', '#ff6b6b', '#4ecdc4']
+        return random.choice(colors)
+    
+    def update_behavior(self, game_players: List[GamePlayer], food_items: List[Food]):
+        """Update bot behavior based on surroundings"""
+        now = datetime.now()
+        
+        # Change direction periodically
+        if (now - self.last_direction_change).total_seconds() > self.direction_change_interval:
+            self._change_direction(game_players, food_items)
+            self.last_direction_change = now
+            self.direction_change_interval = random.uniform(2, 8)
+    
+    def _change_direction(self, game_players: List[GamePlayer], food_items: List[Food]):
+        """Intelligent direction change based on bot behavior and surroundings"""
+        if self.behavior == 'aggressive':
+            self._target_smaller_players(game_players)
+        elif self.behavior == 'defensive':
+            self._avoid_larger_players(game_players)
+        elif self.behavior == 'feeder':
+            self._target_food(food_items)
+        else:  # neutral
+            self._random_movement()
+    
+    def _target_smaller_players(self, players: List[GamePlayer]):
+        """Target smaller players aggressively"""
+        smaller_players = [p for p in players if p.money < self.money * 0.8]
+        if smaller_players:
+            target = min(smaller_players, key=lambda p: self._distance_to(p.x, p.y))
+            self.target_x = target.x + random.uniform(-50, 50)
+            self.target_y = target.y + random.uniform(-50, 50)
+        else:
+            self._random_movement()
+    
+    def _avoid_larger_players(self, players: List[GamePlayer]):
+        """Avoid larger players defensively"""
+        larger_players = [p for p in players if p.money > self.money * 1.2]
+        if larger_players:
+            # Move away from the closest large player
+            closest = min(larger_players, key=lambda p: self._distance_to(p.x, p.y))
+            dx = self.x - closest.x
+            dy = self.y - closest.y
+            distance = math.sqrt(dx*dx + dy*dy)
+            if distance > 0:
+                self.target_x = self.x + (dx / distance) * 100
+                self.target_y = self.y + (dy / distance) * 100
+        else:
+            self._random_movement()
+    
+    def _target_food(self, food_items: List[Food]):
+        """Target nearby food items"""
+        if food_items:
+            nearby_food = [f for f in food_items if self._distance_to(f.x, f.y) < 150]
+            if nearby_food:
+                target_food = min(nearby_food, key=lambda f: self._distance_to(f.x, f.y))
+                self.target_x = target_food.x
+                self.target_y = target_food.y
+            else:
+                self._random_movement()
+        else:
+            self._random_movement()
+    
+    def _random_movement(self):
+        """Random movement pattern"""
+        self.target_x = random.uniform(50, 750)
+        self.target_y = random.uniform(50, 550)
+    
+    def _distance_to(self, x: float, y: float) -> float:
+        """Calculate distance to a point"""
+        return math.sqrt((self.x - x)**2 + (self.y - y)**2)
+    
+    def update_position(self):
+        """Update bot position towards target"""
+        dx = self.target_x - self.x
+        dy = self.target_y - self.y
+        distance = math.sqrt(dx*dx + dy*dy)
+        
+        if distance > 0:
+            # Apply speed with some randomness
+            actual_speed = self.speed * random.uniform(0.8, 1.2)
+            move_x = (dx / distance) * actual_speed
+            move_y = (dy / distance) * actual_speed
+            
+            # Update position with boundaries
+            self.x = max(20, min(780, self.x + move_x))
+            self.y = max(20, min(580, self.y + move_y))
+    
+    def to_game_player(self) -> GamePlayer:
+        """Convert bot to GamePlayer format"""
+        return GamePlayer(
+            playerId=self.bot_id,
+            name=self.name,
+            x=self.x,
+            y=self.y,
+            money=self.money,
+            score=self.score,
+            kills=self.kills,
+            color=self.color
+        )
+
 class GameManager:
     def __init__(self):
         self.active_games: Dict[str, Game] = {}
