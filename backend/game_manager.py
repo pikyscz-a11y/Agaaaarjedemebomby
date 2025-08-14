@@ -451,30 +451,97 @@ class GameManager:
             
         return points_earned
     
-    async def process_power_up_consumption(self, game_id: str, player_id: str, power_up_ids: List[str]) -> List[PowerUp]:
-        """Process power-up consumption and return consumed power-ups"""
+    async def process_power_up_consumption(self, game_id: str, player_id: str, power_up_ids: List[str]) -> List[dict]:
+        """Process power-up consumption and apply effects"""
         if game_id not in self.active_games:
             return []
             
         game = self.active_games[game_id]
         consumed_power_ups = []
         
-        # Remove consumed power-ups
+        # Find player
+        player = None
+        for p in game.players:
+            if p.playerId == player_id:
+                player = p
+                break
+        
+        if not player:
+            return []
+        
+        # Remove consumed power-ups and apply effects
         remaining_power_ups = []
         for power_up in game.powerUps:
             if power_up.id in power_up_ids:
-                consumed_power_ups.append(power_up)
+                # Apply power-up effects immediately
+                effect_applied = self._apply_power_up_effect(player, power_up)
+                if effect_applied:
+                    consumed_power_ups.append({
+                        'id': power_up.id,
+                        'type': power_up.type,
+                        'effect': power_up.effect,
+                        'duration': power_up.duration,
+                        'appliedAt': datetime.now().isoformat()
+                    })
             else:
                 remaining_power_ups.append(power_up)
                 
         game.powerUps = remaining_power_ups
         
-        # Generate new power-ups occasionally
-        if len(consumed_power_ups) > 0 and random.random() < 0.3:
-            new_power_ups = self._generate_power_ups(1)
+        # Generate new power-ups to maintain game balance
+        config = self.GAME_CONFIGS.get(game.gameMode, self.GAME_CONFIGS['classic'])
+        if len(consumed_power_ups) > 0 and len(game.powerUps) < config['POWERUP_COUNT']:
+            new_power_ups = self._generate_power_ups(len(consumed_power_ups))
             game.powerUps.extend(new_power_ups)
             
         return consumed_power_ups
+    
+    def _apply_power_up_effect(self, player: GamePlayer, power_up) -> bool:
+        """Apply power-up effect to player"""
+        try:
+            if power_up.type == 'speed':
+                # Temporarily increase player speed (handled in frontend)
+                player.powerUpEffects = getattr(player, 'powerUpEffects', {})
+                player.powerUpEffects['speed'] = {
+                    'multiplier': 1.5,
+                    'expiresAt': datetime.now() + timedelta(seconds=power_up.duration)
+                }
+                return True
+            elif power_up.type == 'size':
+                # Temporarily increase player size
+                player.powerUpEffects = getattr(player, 'powerUpEffects', {})
+                player.powerUpEffects['size'] = {
+                    'multiplier': 1.3,
+                    'expiresAt': datetime.now() + timedelta(seconds=power_up.duration)
+                }
+                return True
+            elif power_up.type == 'magnet':
+                # Attract nearby food automatically
+                player.powerUpEffects = getattr(player, 'powerUpEffects', {})
+                player.powerUpEffects['magnet'] = {
+                    'range': 50,
+                    'expiresAt': datetime.now() + timedelta(seconds=power_up.duration)
+                }
+                return True
+            elif power_up.type == 'money':
+                # Immediate money boost
+                bonus_money = power_up.effect
+                player.money += bonus_money
+                player.score += bonus_money
+                return True
+            elif power_up.type == 'shield':
+                # Temporary invulnerability
+                player.powerUpEffects = getattr(player, 'powerUpEffects', {})
+                player.powerUpEffects['shield'] = {
+                    'active': True,
+                    'expiresAt': datetime.now() + timedelta(seconds=power_up.duration)
+                }
+                return True
+        except Exception as e:
+            print(f"Error applying power-up effect: {e}")
+            return False
+        
+        return False
     
     def _generate_food(self, count: int) -> List[Food]:
         """Generate random food items"""
