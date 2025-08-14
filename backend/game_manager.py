@@ -276,6 +276,72 @@ class GameManager:
                 
         return False
     
+    def _create_ai_bots(self, game_id: str, bot_count: int) -> List[AIBot]:
+        """Create AI bots for a game"""
+        bots = []
+        bot_names = [
+            "BotDestroyer", "CashGrabber", "MoneyHunter", "AgarKing", "BlobMaster",
+            "CoinCollector", "PowerPlayer", "FastFeeder", "MegaBeast", "ProfitSeeker",
+            "GoldRusher", "BallBuster", "MoneyMaker", "AgarLord", "BlobBoss",
+            "CashCrusher", "FoodFiend", "ScoreSeeker", "WealthWolf", "BubbleBeast"
+        ]
+        
+        for i in range(bot_count):
+            bot_name = random.choice(bot_names) + str(random.randint(1, 999))
+            bot_id = f"bot_{game_id}_{i}"
+            
+            # Random starting position
+            x = random.uniform(50, 750)
+            y = random.uniform(50, 550)
+            
+            bot = AIBot(bot_id, bot_name, x, y)
+            bots.append(bot)
+        
+        return bots
+    
+    async def _bot_update_loop(self, game_id: str):
+        """Continuous update loop for bots in a game"""
+        while game_id in self.active_games:
+            try:
+                await self._update_bots(game_id)
+                await asyncio.sleep(0.1)  # Update bots 10 times per second
+            except Exception as e:
+                print(f"Bot update error for game {game_id}: {e}")
+                break
+    
+    async def _update_bots(self, game_id: str):
+        """Update all bots in a game"""
+        if game_id not in self.active_games or game_id not in self.game_bots:
+            return
+        
+        game = self.active_games[game_id]
+        bots = self.game_bots[game_id]
+        
+        for bot in bots:
+            # Update bot behavior and position
+            human_players = [p for p in game.players if not p.playerId.startswith('bot_')]
+            bot.update_behavior(human_players, game.food)
+            bot.update_position()
+            
+            # Simulate bot food consumption
+            if random.random() < 0.02:  # 2% chance per update
+                nearby_food = [f for f in game.food if bot._distance_to(f.x, f.y) < 25]
+                if nearby_food:
+                    consumed_food = random.choice(nearby_food)
+                    bot.money += consumed_food.value
+                    bot.score += consumed_food.value
+                    
+                    # Remove consumed food and add new food
+                    game.food = [f for f in game.food if f.id != consumed_food.id]
+                    new_food = self._generate_food(1)
+                    game.food.extend(new_food)
+            
+            # Update bot in game players list
+            for i, player in enumerate(game.players):
+                if player.playerId == bot.bot_id:
+                    game.players[i] = bot.to_game_player()
+                    break
+    
     async def get_game_state(self, game_id: str) -> Optional[GameState]:
         """Get current game state"""
         if game_id not in self.active_games:
