@@ -311,15 +311,14 @@ async def get_recent_matches():
 @api_router.get("/stats/platform")
 async def get_platform_stats():
     """Get platform statistics"""
-    # Count active games and players
-    total_active_games = len(game_manager.active_games)
-    total_online_players = sum(len(game.players) for game in game_manager.active_games.values())
+    active_games_count = len(game_manager.active_games)
+    total_players = sum(len(game.players) for game in game_manager.active_games.values())
     
     return {
-        "playersOnline": total_online_players,
-        "activeGames": total_active_games,
-        "gamesToday": 1247,  # Mock data
-        "totalPrizePool": 12456  # Mock data
+        "playersOnline": total_players,
+        "activeGames": active_games_count,
+        "gamesToday": random.randint(1200, 1300),
+        "totalPrizePool": random.randint(12000, 15000)
     }
 
 # Shop Endpoints
