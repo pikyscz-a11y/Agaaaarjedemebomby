@@ -28,6 +28,47 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
     return MIN_SIZE + Math.sqrt(money / 10);
   }, []);
 
+  // Create particle effects for food consumption
+  const createFoodParticles = useCallback((x, y, points) => {
+    const particles = [];
+    for (let i = 0; i < Math.min(points, 8); i++) {
+      particles.push({
+        id: Math.random(),
+        x: x + Math.random() * 20 - 10,
+        y: y + Math.random() * 20 - 10,
+        vx: Math.random() * 4 - 2,
+        vy: Math.random() * 4 - 2,
+        life: 1.0,
+        color: `hsl(${Math.random() * 360}, 70%, 60%)`
+      });
+    }
+    return particles;
+  }, []);
+
+  // Update particles
+  const updateParticles = useCallback(() => {
+    setParticles(prev => 
+      prev
+        .map(particle => ({
+          ...particle,
+          x: particle.x + particle.vx,
+          y: particle.y + particle.vy,
+          life: particle.life - 0.02,
+          vy: particle.vy + 0.1 // Gravity effect
+        }))
+        .filter(particle => particle.life > 0)
+    );
+  }, []);
+
+  // Update camera shake
+  const updateCameraShake = useCallback(() => {
+    setCameraShake(prev => ({
+      x: prev.x * 0.9,
+      y: prev.y * 0.9,
+      intensity: Math.max(0, prev.intensity - 1)
+    }));
+  }, []);
+
   // Handle keyboard input
   useEffect(() => {
     const handleKeyDown = (e) => {
