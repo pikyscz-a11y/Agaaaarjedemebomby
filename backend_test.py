@@ -58,10 +58,16 @@ class MoneyAgarAPITester:
                     response_data = await response.json()
                     return response.status, response_data, response_time
             elif method.upper() == 'POST':
-                async with self.session.post(url, json=data) as response:
-                    response_time = asyncio.get_event_loop().time() - start_time
-                    response_data = await response.json()
-                    return response.status, response_data, response_time
+                if params:
+                    async with self.session.post(url, params=params) as response:
+                        response_time = asyncio.get_event_loop().time() - start_time
+                        response_data = await response.json()
+                        return response.status, response_data, response_time
+                else:
+                    async with self.session.post(url, json=data) as response:
+                        response_time = asyncio.get_event_loop().time() - start_time
+                        response_data = await response.json()
+                        return response.status, response_data, response_time
             elif method.upper() == 'PUT':
                 async with self.session.put(url, json=data) as response:
                     response_time = asyncio.get_event_loop().time() - start_time
