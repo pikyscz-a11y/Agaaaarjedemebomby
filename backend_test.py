@@ -813,21 +813,21 @@ class MoneyAgarAPITester:
             inventory_items = inventory_data['inventory']
             first_item = inventory_items[0]
             
-            # Test equipping an item
-            equip_data = {
+            # Test equipping an item (using query parameters)
+            equip_params = {
                 "player_id": player["id"],
                 "item_id": first_item["itemId"]
             }
-            status, equip_response, response_time = await self.make_request('POST', '/shop/equip', equip_data)
+            status, equip_response, response_time = await self.make_request('POST', '/shop/equip', params=equip_params)
             success = status == 200 and equip_response.get('success') == True
             self.log_test("Inventory Management - Equip Item", success, f"Status: {status}, Item equipped: {first_item['itemName']}", response_time)
             
             # Test equipping invalid item
-            invalid_equip = {
+            invalid_equip_params = {
                 "player_id": player["id"],
                 "item_id": "invalid-item-id"
             }
-            status, response, response_time = await self.make_request('POST', '/shop/equip', invalid_equip)
+            status, response, response_time = await self.make_request('POST', '/shop/equip', params=invalid_equip_params)
             success = status == 404
             self.log_test("Inventory Management - Equip Invalid Item", success, f"Status: {status}, Error handled correctly", response_time)
         else:
