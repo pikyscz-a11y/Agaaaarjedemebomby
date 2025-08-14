@@ -311,6 +311,11 @@ async def get_recent_matches():
 @api_router.get("/stats/platform")
 async def get_platform_stats():
     """Get platform statistics"""
+    # Clean up inactive games first
+    cleaned_games = await game_manager.cleanup_inactive_games()
+    if cleaned_games > 0:
+        print(f"Cleaned up {cleaned_games} inactive games")
+    
     active_games_count = len(game_manager.active_games)
     total_players = sum(len(game.players) for game in game_manager.active_games.values())
     
