@@ -145,10 +145,10 @@ async def leave_game(game_id: str, player_id: str):
     return {"success": success}
 
 @api_router.post("/games/{game_id}/consume-food")
-async def consume_food(game_id: str, request_data: dict):
+async def consume_food(game_id: str, request_data: FoodConsumptionRequest):
     """Process food consumption"""
-    food_ids = request_data.get("food_ids", [])
-    player_id = request_data.get("player_id")
+    food_ids = request_data.food_ids
+    player_id = request_data.player_id
     
     if not player_id or not food_ids:
         raise HTTPException(status_code=400, detail="Missing player_id or food_ids")
@@ -157,10 +157,10 @@ async def consume_food(game_id: str, request_data: dict):
     return {"pointsEarned": points_earned}
 
 @api_router.post("/games/{game_id}/consume-powerup")
-async def consume_power_up(game_id: str, request_data: dict):
+async def consume_power_up(game_id: str, request_data: PowerUpConsumptionRequest):
     """Process power-up consumption"""
-    power_up_ids = request_data.get("power_up_ids", [])
-    player_id = request_data.get("player_id")
+    power_up_ids = request_data.power_up_ids
+    player_id = request_data.player_id
     
     if not player_id or not power_up_ids:
         raise HTTPException(status_code=400, detail="Missing player_id or power_up_ids")
