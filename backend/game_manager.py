@@ -128,6 +128,7 @@ class GameManager:
     def __init__(self):
         self.active_games: Dict[str, Game] = {}
         self.player_to_game: Dict[str, str] = {}  # playerId -> gameId
+        self.game_bots: Dict[str, List[AIBot]] = {}  # gameId -> List[AIBot]
         
         # Enhanced game configurations for different modes
         self.GAME_CONFIGS = {
@@ -137,6 +138,7 @@ class GameManager:
                 'FOOD_REPLACEMENT_RATE': 0.5,
                 'MATCH_DURATION': None,  # Unlimited
                 'ARENA_SHRINK': False,
+                'BOT_COUNT': 8,
                 'SPECIAL_RULES': {}
             },
             'tournament': {
@@ -145,6 +147,7 @@ class GameManager:
                 'FOOD_REPLACEMENT_RATE': 0.4,
                 'MATCH_DURATION': 900,  # 15 minutes
                 'ARENA_SHRINK': False,
+                'BOT_COUNT': 10,
                 'SPECIAL_RULES': {'elimination_threshold': 10}
             },
             'blitz': {
@@ -153,6 +156,7 @@ class GameManager:
                 'FOOD_REPLACEMENT_RATE': 0.8,  # Fast-paced
                 'MATCH_DURATION': 300,  # 5 minutes
                 'ARENA_SHRINK': False,
+                'BOT_COUNT': 15,
                 'SPECIAL_RULES': {'speed_multiplier': 1.5, 'score_multiplier': 2.0}
             },
             'royale': {
@@ -161,6 +165,7 @@ class GameManager:
                 'FOOD_REPLACEMENT_RATE': 0.3,
                 'MATCH_DURATION': 1200,  # 20 minutes
                 'ARENA_SHRINK': True,
+                'BOT_COUNT': 25,
                 'SPECIAL_RULES': {'shrink_start_time': 300, 'shrink_rate': 10}
             }
         }
