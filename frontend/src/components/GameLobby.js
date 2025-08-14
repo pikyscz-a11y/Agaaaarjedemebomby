@@ -136,26 +136,63 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
     console.log('handleStartGame called!', { playerName, playerId: player.id });
     
     if (!playerName.trim()) {
-      console.log('No player name provided');
-      toast({
-        title: "Error", 
-        description: "Please enter your warrior name",
-        variant: "destructive",
-      });
-      return;
+      console.log('No player name provided, attempting registration...');
+      
+      // Try to register player immediately
+      try {
+        const registeredPlayer = await playerAPI.register('DefaultPlayer');
+        setPlayer(prev => ({
+          ...prev,
+          id: registeredPlayer.id,
+          name: registeredPlayer.name,
+          virtualMoney: registeredPlayer.virtualMoney,
+          realMoney: registeredPlayer.realMoney
+        }));
+        
+        console.log('Player registered successfully:', registeredPlayer);
+        
+        // Now start the game
+        onStartGame(selectedMode, registeredPlayer);
+        return;
+      } catch (error) {
+        console.error('Registration failed:', error);
+        toast({
+          title: "Error", 
+          description: "Registration failed, please try again",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     if (!player.id) {
-      console.log('Player not registered, player.id missing');
-      toast({
-        title: "Error",
-        description: "Player not registered yet, please wait...",
-        variant: "destructive",
-      });
-      return;
+      console.log('Player not registered, trying to register with current name...');
+      
+      try {
+        const registeredPlayer = await playerAPI.register(playerName.trim());
+        setPlayer(prev => ({
+          ...prev,
+          id: registeredPlayer.id,
+          name: registeredPlayer.name,
+          virtualMoney: registeredPlayer.virtualMoney,
+          realMoney: registeredPlayer.realMoney
+        }));
+        
+        console.log('Player registered with current name:', registeredPlayer);
+        onStartGame(selectedMode, registeredPlayer);
+        return;
+      } catch (error) {
+        console.error('Registration with current name failed:', error);
+        toast({
+          title: "Error",
+          description: "Registration failed, please try again",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
-    console.log('Calling onStartGame...');
+    console.log('Calling onStartGame with existing player...');
     // Player is already registered, just start the game
     onStartGame(selectedMode, player);
   };
