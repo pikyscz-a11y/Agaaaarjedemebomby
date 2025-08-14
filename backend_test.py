@@ -1312,10 +1312,6 @@ class MoneyAgarAPITester:
             await self.test_ai_bot_verification()
             await self.test_game_state_consistency_after_fixes()
             
-            # Food Respawn Rate Tests (Regression Testing)
-            print("\n🍎 ADDITIONAL FOOD RESPAWN TESTS")
-            await self.test_game_state_consistency()
-            
             # NEW: Shop System Tests
             print("\n🛒 SHOP SYSTEM TESTS")
             await self.test_shop_items_retrieval()
