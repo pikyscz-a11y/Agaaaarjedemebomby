@@ -145,8 +145,14 @@ async def leave_game(game_id: str, player_id: str):
     return {"success": success}
 
 @api_router.post("/games/{game_id}/consume-food")
-async def consume_food(game_id: str, food_ids: List[str], player_id: str):
+async def consume_food(game_id: str, request_data: dict):
     """Process food consumption"""
+    food_ids = request_data.get("food_ids", [])
+    player_id = request_data.get("player_id")
+    
+    if not player_id or not food_ids:
+        raise HTTPException(status_code=400, detail="Missing player_id or food_ids")
+        
     points_earned = await game_manager.process_food_consumption(game_id, player_id, food_ids)
     return {"pointsEarned": points_earned}
 
