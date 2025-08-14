@@ -49,10 +49,13 @@ function App() {
     gameStats: {}
   });
 
-  const handleStartGame = async (mode) => {
-    console.log('handleStartGame called', { mode, playerId: player.id, playerName: player.name });
+  const handleStartGame = async (mode, registeredPlayer = null) => {
+    const playerId = registeredPlayer?.id || player.id;
+    const playerName = registeredPlayer?.name || player.name;
     
-    if (!player.id) {
+    console.log('handleStartGame called', { mode, playerId, playerName, registeredPlayer });
+    
+    if (!playerId) {
       console.error('Player not registered - missing player.id');
       toast({
         title: "Error",
@@ -65,27 +68,42 @@ function App() {
     try {
       console.log('Creating game with gameAPI.createGame...');
       // Create or join game
-      const game = await gameAPI.createGame(mode, player.id);
+      const game = await gameAPI.createGame(mode, playerId);
       console.log('Game created successfully:', game);
+      
+      // If we got a registeredPlayer, update the player state with it
+      if (registeredPlayer) {
+        setPlayer(prev => ({
+          ...prev,
+          ...registeredPlayer,
+          isAlive: true,
+          score: 0,
+          kills: 0,
+          x: 400,
+          y: 300,
+          powerUps: []
+        }));
+      } else {
+        setPlayer(prev => ({
+          ...prev,
+          isAlive: true,
+          score: 0,
+          kills: 0,
+          x: 400,
+          y: 300,
+          powerUps: []
+        }));
+      }
       
       setCurrentGameId(game.id);
       setSelectedMode(mode);
-      setPlayer(prev => ({
-        ...prev,
-        isAlive: true,
-        score: 0,
-        kills: 0,
-        x: 400,
-        y: 300,
-        powerUps: []
-      }));
       
       setGameState(prev => ({
         ...prev,
         gameMode: mode,
         isActive: true,
         food: game.food || [],
-        otherPlayers: game.players?.filter(p => p.playerId !== player.id) || [],
+        otherPlayers: game.players?.filter(p => p.playerId !== playerId) || [],
         powerUps: game.powerUps || [],
         gameStats: {
           playersOnline: game.players?.length || 1,
