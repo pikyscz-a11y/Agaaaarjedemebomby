@@ -80,6 +80,13 @@ export const gameAPI = {
       player_id: playerId
     });
     return response.data;
+  },
+
+  checkPlayerCollisions: async (gameId, playerId) => {
+    const response = await apiClient.post(`/games/${gameId}/check-collisions`, {
+      player_id: playerId
+    });
+    return response.data;
   }
 };
 
