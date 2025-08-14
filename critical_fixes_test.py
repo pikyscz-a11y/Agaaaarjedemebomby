@@ -90,7 +90,7 @@ class CriticalFixesTester:
                 self.test_players.append(data)
                 self.log_test(f"Setup Player {i+1}", True, f"Player ID: {data.get('id', 'None')}", response_time)
             else:
-                self.log_test(f"Setup Player {i+1}", False, f"Failed with status: {status}", response_time)
+                self.log_test(f"Setup Player {i+1}", False, f"Failed with status: {status}, Error: {data}", response_time)
         
         # Create test games for different modes
         game_modes = ['classic', 'tournament', 'blitz', 'royale']
