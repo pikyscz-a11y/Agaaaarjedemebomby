@@ -418,7 +418,7 @@ class MoneyAgarAPITester:
         initial_food_count = len(initial_state.get('food', []))
         self.log_test("Food Respawn - Initial State", True, f"Initial food count: {initial_food_count}", response_time)
         
-        # Step 2: Simulate food consumption (consume 4 food items)
+        # Step 2: Simulate food consumption (consume 4 food items) - FIXED PARAMETER FORMAT
         food_items = initial_state.get('food', [])[:4]  # Take first 4 food items
         food_ids = [food['id'] for food in food_items]
         
@@ -426,7 +426,12 @@ class MoneyAgarAPITester:
             self.log_test("Food Respawn - Insufficient Food", False, f"Not enough food items for test: {len(food_ids)}")
             return
             
-        status, consume_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food?player_id={player["id"]}', food_ids)
+        # Use correct parameter format for food consumption API
+        consume_data = {
+            "food_ids": food_ids,
+            "player_id": player["id"]
+        }
+        status, consume_response, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food', consume_data)
         
         if status != 200:
             self.log_test("Food Respawn - Food Consumption", False, f"Failed to consume food: {status}")
@@ -444,10 +449,11 @@ class MoneyAgarAPITester:
         after_consume_food_count = len(after_consume_state.get('food', []))
         
         # Calculate expected food count with 50% respawn rate
-        # Initial count - consumed + (consumed * 0.5) = initial - (consumed * 0.5)
-        expected_food_count = initial_food_count - (len(food_ids) // 2)  # 50% respawn rate
+        # Formula: initial_count - consumed_count + (consumed_count * replacement_rate)
+        # With 50% rate: initial - 4 + (4 * 0.5) = initial - 2
+        expected_food_count = initial_food_count - 2  # 50% respawn rate means net loss of 2
         
-        # Allow some tolerance for the max(1, count//2) logic
+        # Allow some tolerance
         tolerance = 1
         food_count_correct = abs(after_consume_food_count - expected_food_count) <= tolerance
         
@@ -462,7 +468,11 @@ class MoneyAgarAPITester:
         if len(remaining_food) >= 2:
             food_ids_2 = [food['id'] for food in remaining_food]
             
-            status, consume_response_2, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food?player_id={player["id"]}', food_ids_2)
+            consume_data_2 = {
+                "food_ids": food_ids_2,
+                "player_id": player["id"]
+            }
+            status, consume_response_2, response_time = await self.make_request('POST', f'/games/{game["id"]}/consume-food', consume_data_2)
             
             if status == 200:
                 # Check final state
@@ -470,8 +480,8 @@ class MoneyAgarAPITester:
                 if status == 200:
                     final_food_count = len(final_state.get('food', []))
                     
-                    # With 50% respawn rate, consuming 2 more should add back 1
-                    expected_final_count = after_consume_food_count - 2 + max(1, 2 // 2)  # -2 consumed +1 respawned
+                    # With 50% respawn rate, consuming 2 more should result in net loss of 1
+                    expected_final_count = after_consume_food_count - 1  # -2 consumed +1 respawned
                     
                     final_count_correct = abs(final_food_count - expected_final_count) <= tolerance
                     self.log_test("Food Respawn - Multiple Consumption Test", final_count_correct,
