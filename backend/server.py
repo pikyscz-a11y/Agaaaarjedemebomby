@@ -151,8 +151,14 @@ async def consume_food(game_id: str, food_ids: List[str], player_id: str):
     return {"pointsEarned": points_earned}
 
 @api_router.post("/games/{game_id}/consume-powerup")
-async def consume_power_up(game_id: str, power_up_ids: List[str], player_id: str):
+async def consume_power_up(game_id: str, request_data: dict):
     """Process power-up consumption"""
+    power_up_ids = request_data.get("power_up_ids", [])
+    player_id = request_data.get("player_id")
+    
+    if not player_id or not power_up_ids:
+        raise HTTPException(status_code=400, detail="Missing player_id or power_up_ids")
+    
     consumed_power_ups = await game_manager.process_power_up_consumption(game_id, player_id, power_up_ids)
     return {"consumedPowerUps": consumed_power_ups}
 
