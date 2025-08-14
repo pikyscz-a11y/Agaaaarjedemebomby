@@ -9,6 +9,9 @@ const GameCanvas = ({ player, setPlayer, gameState, setGameState, gameId }) => {
   const [keys, setKeys] = useState({});
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
   const [lastPositionUpdate, setLastPositionUpdate] = useState(Date.now());
+  const [playerTrail, setPlayerTrail] = useState([]);
+  const [particles, setParticles] = useState([]);
+  const [cameraShake, setCameraShake] = useState({ x: 0, y: 0, intensity: 0 });
 
   // Game constants
   const CANVAS_WIDTH = 800;
