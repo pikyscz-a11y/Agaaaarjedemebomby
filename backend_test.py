@@ -936,11 +936,11 @@ class MoneyAgarAPITester:
         self.log_test("Shop Integration - Verify in Inventory", success, f"Item found in inventory", response_time)
         
         # Step 3: Equip the item
-        equip_data = {
+        equip_params = {
             "player_id": player["id"],
             "item_id": affordable_powerup["id"]
         }
-        status, equip_response, response_time = await self.make_request('POST', '/shop/equip', equip_data)
+        status, equip_response, response_time = await self.make_request('POST', '/shop/equip', params=equip_params)
         success = status == 200 and equip_response.get('success') == True
         self.log_test("Shop Integration - Equip Powerup", success, f"Powerup equipped successfully", response_time)
         
