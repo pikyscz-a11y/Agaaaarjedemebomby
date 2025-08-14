@@ -1304,9 +1304,16 @@ class MoneyAgarAPITester:
             await self.test_position_update()
             await self.test_leave_game()
             
-            # Food Respawn Rate Tests (Regression Testing)
-            print("\n🍎 FOOD RESPAWN RATE TESTS")
+            # CRITICAL BUG FIX TESTS (Priority)
+            print("\n🔧 CRITICAL BUG FIX TESTS")
             await self.test_food_respawn_rate_fix()
+            await self.test_power_up_consumption_api_fix()
+            await self.test_player_collision_detection()
+            await self.test_ai_bot_verification()
+            await self.test_game_state_consistency_after_fixes()
+            
+            # Food Respawn Rate Tests (Regression Testing)
+            print("\n🍎 ADDITIONAL FOOD RESPAWN TESTS")
             await self.test_game_state_consistency()
             
             # NEW: Shop System Tests
