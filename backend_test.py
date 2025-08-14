@@ -13,7 +13,7 @@ from typing import Dict, List, Any
 from datetime import datetime
 
 # Get backend URL from environment
-BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://moneyagar.preview.emergentagent.com')
+BACKEND_URL = "https://7f3909c1-62d1-4ad8-9c01-1975ec06f459.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 class MoneyAgarAPITester:
