@@ -135,7 +135,7 @@ class GameManager:
             'classic': {
                 'FOOD_COUNT': 100,
                 'POWERUP_COUNT': 5,
-                'FOOD_REPLACEMENT_RATE': 0.5,
+                'FOOD_REPLACEMENT_RATE': 0.1,  # Much lower - only 10%
                 'MATCH_DURATION': None,  # Unlimited
                 'ARENA_SHRINK': False,
                 'BOT_COUNT': 8,
@@ -144,7 +144,7 @@ class GameManager:
             'tournament': {
                 'FOOD_COUNT': 80,
                 'POWERUP_COUNT': 8,
-                'FOOD_REPLACEMENT_RATE': 0.4,
+                'FOOD_REPLACEMENT_RATE': 0.15,  # 15%
                 'MATCH_DURATION': 900,  # 15 minutes
                 'ARENA_SHRINK': False,
                 'BOT_COUNT': 10,
@@ -153,7 +153,7 @@ class GameManager:
             'blitz': {
                 'FOOD_COUNT': 120,
                 'POWERUP_COUNT': 12,
-                'FOOD_REPLACEMENT_RATE': 0.8,  # Fast-paced
+                'FOOD_REPLACEMENT_RATE': 0.3,  # Still fast but not crazy
                 'MATCH_DURATION': 300,  # 5 minutes
                 'ARENA_SHRINK': False,
                 'BOT_COUNT': 15,
@@ -162,7 +162,7 @@ class GameManager:
             'royale': {
                 'FOOD_COUNT': 150,
                 'POWERUP_COUNT': 15,
-                'FOOD_REPLACEMENT_RATE': 0.3,
+                'FOOD_REPLACEMENT_RATE': 0.05,  # Very low for survival mode
                 'MATCH_DURATION': 1200,  # 20 minutes
                 'ARENA_SHRINK': True,
                 'BOT_COUNT': 25,
