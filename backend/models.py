@@ -136,3 +136,55 @@ class RecentMatch(BaseModel):
     mode: str
     prize: int
     timeAgo: str
+
+# Shop System Models
+class ShopItemType(BaseModel):
+    category: str  # 'skin', 'powerup', 'boost', 'decoration'
+    subcategory: str  # 'player_skin', 'permanent_boost', 'temporary_boost', etc.
+
+class ShopItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: str
+    category: str  # 'skins', 'powerups', 'boosts', 'decorations'
+    subcategory: str  # 'player_skins', 'permanent_powerups', 'temporary_boosts', etc.
+    price: int
+    currency: str = "virtual"  # 'virtual' or 'real'
+    rarity: str = "common"  # 'common', 'rare', 'epic', 'legendary'
+    isAvailable: bool = True
+    isPermanent: bool = True
+    duration: Optional[int] = None  # Duration in seconds for temporary items
+    effects: Dict = {}  # Item effects/properties
+    imageUrl: Optional[str] = None
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+
+class PlayerInventory(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    playerId: str
+    itemId: str
+    itemName: str
+    category: str
+    subcategory: str
+    quantity: int = 1
+    isEquipped: bool = False
+    purchasedAt: datetime = Field(default_factory=datetime.utcnow)
+    expiresAt: Optional[datetime] = None
+
+class PlayerSkin(BaseModel):
+    skinId: str
+    name: str
+    color: str
+    pattern: str = "solid"  # 'solid', 'gradient', 'striped', 'dotted'
+    effects: Dict = {}
+
+class ShopPurchaseRequest(BaseModel):
+    playerId: str
+    itemId: str
+    quantity: int = 1
+
+class ShopPurchaseResponse(BaseModel):
+    success: bool
+    transactionId: str
+    item: ShopItem
+    newBalance: int
+    message: Optional[str] = None
