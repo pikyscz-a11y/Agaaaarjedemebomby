@@ -240,10 +240,12 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
               </CardContent>
             </Card>
 
-            {/* Game Modes */}
-            <Card className="bg-slate-800 border-slate-700">
+            {/* Game Modes with Crazy Styling */}
+            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-orange-500 shadow-2xl">
               <CardHeader>
-                <CardTitle className="text-white">Select Game Mode</CardTitle>
+                <CardTitle className="text-white text-2xl flex items-center gap-2">
+                  🎯 SELECT YOUR BATTLEGROUND 🎯
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4">
@@ -253,25 +255,25 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
                       <div
                         key={mode.id}
                         onClick={() => setSelectedMode(mode.id)}
-                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        className={`p-6 rounded-xl border-3 cursor-pointer transition-all transform hover:scale-105 ${
                           selectedMode === mode.id
-                            ? 'border-blue-500 bg-blue-500/10'
-                            : 'border-slate-600 hover:border-slate-500'
+                            ? 'border-yellow-400 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 shadow-xl'
+                            : 'border-gray-600 hover:border-gray-500 bg-gradient-to-r from-gray-700/50 to-gray-800/50'
                         }`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`p-3 rounded-lg bg-gradient-to-r ${mode.gradient}`}>
-                            <Icon className="w-6 h-6 text-white" />
+                          <div className={`p-4 rounded-xl bg-gradient-to-r ${mode.gradient} shadow-lg`}>
+                            <Icon className="w-8 h-8 text-white" />
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-white">{mode.name}</h3>
-                            <p className="text-gray-400 text-sm">{mode.description}</p>
-                            <div className="flex gap-4 mt-2">
-                              <Badge variant="secondary" className="bg-slate-700">
-                                Min: ${mode.minBet}
+                            <h3 className="text-2xl font-black text-white drop-shadow-lg">{mode.name}</h3>
+                            <p className="text-gray-300 text-lg font-semibold">{mode.description}</p>
+                            <div className="flex gap-4 mt-3">
+                              <Badge variant="secondary" className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold text-sm px-3 py-1">
+                                💰 Min: ${mode.minBet}
                               </Badge>
-                              <Badge variant="secondary" className="bg-slate-700">
-                                Max: {mode.maxPlayers} players
+                              <Badge variant="secondary" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-sm px-3 py-1">
+                                👥 Max: {mode.maxPlayers} players
                               </Badge>
                             </div>
                           </div>
@@ -284,10 +286,10 @@ const GameLobby = ({ onStartGame, player, setPlayer }) => {
                 <Button
                   onClick={handleStartGame}
                   disabled={!playerName.trim() || isRegistering}
-                  className="w-full mt-6 h-12 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  className="w-full mt-8 h-16 text-2xl font-black bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 hover:from-red-700 hover:via-orange-700 hover:to-yellow-700 border-2 border-yellow-400 shadow-2xl transform hover:scale-105 transition-all"
                 >
-                  <Play className="w-5 h-5 mr-2" />
-                  {isRegistering ? 'Starting Game...' : 'Start Game'}
+                  <Play className="w-6 h-6 mr-3" />
+                  {isRegistering ? '🚀 JOINING BATTLE...' : '⚔️ START BATTLE NOW! ⚔️'}
                 </Button>
               </CardContent>
             </Card>
