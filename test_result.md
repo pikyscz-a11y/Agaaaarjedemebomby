@@ -285,6 +285,30 @@ backend:
           agent: "testing"
           comment: "Platform stats endpoint working correctly. Returns real-time data for active games and online players, plus mock data for daily stats. Response time: 0.045s"
 
+  - task: "Shop System Implementation"
+    implemented: true
+    working: "unknown"
+    file: "backend/server.py, backend/database.py, backend/models.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "unknown"
+          agent: "main"
+          comment: "Implemented comprehensive shop system with 12 default items, 4 new API endpoints (/shop/items, /shop/purchase, /shop/inventory, /shop/equip), database operations for shop management, and frontend Shop component. Need to test all shop functionality including item purchasing, inventory management, and effects system."
+
+  - task: "Advanced Game Modes Enhancement"
+    implemented: true
+    working: "unknown"
+    file: "backend/game_manager.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "unknown"
+          agent: "main"
+          comment: "Enhanced GameManager with mode-specific configurations for Classic, Tournament, Blitz, and Battle Royale modes. Each mode has unique food counts, powerup counts, replacement rates, match durations, and special rules. Implemented arena shrinking logic for Battle Royale mode."
+
   - task: "Food Respawn Rate Fix"
     implemented: true
     working: true
