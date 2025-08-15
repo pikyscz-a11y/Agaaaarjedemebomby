@@ -11,4 +11,4 @@ RUN echo "USING DOCKERFILE WITHOUT NPM (no COPY package*.json, no npm install)"
 ENV NODE_ENV=production
 EXPOSE 8080
 
-CMD ["node", "server.js"]
+CMD ["node","backend/server.js"]
