@@ -1,15 +1,20 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
 import logging
+import time
 from pathlib import Path
 from dotenv import load_dotenv
+import uuid
+import asyncio
 
 # Import our modules
 from models import *
 from database import database
 from game_manager import game_manager
+from game_room_manager import game_room_manager
+from websocket_protocol import websocket_manager, WebSocketGameClient
 from utils import *
 
 # Load environment variables
@@ -21,11 +26,13 @@ load_dotenv(ROOT_DIR / '.env')
 async def lifespan(app: FastAPI):
     # Startup
     await database.connect()
-    logging.info("Database connected")
+    await game_room_manager.start()
+    logging.info("Database connected and game room manager started")
     yield
     # Shutdown
+    await game_room_manager.stop()
     await database.disconnect()
-    logging.info("Database disconnected")
+    logging.info("Game room manager stopped and database disconnected")
 
 # Create the main app
 app = FastAPI(lifespan=lifespan)
@@ -442,6 +449,258 @@ async def equip_item(player_id: str, item_id: str):
     except Exception as e:
         logger.error(f"Error equipping item: {e}")
         raise HTTPException(status_code=500, detail="Failed to equip item")
+
+# New Enhanced Game Room Endpoints
+@api_router.post("/rooms/create")
+async def create_game_room(game_mode: str, private: bool = False):
+    """Create a new game room"""
+    try:
+        room_id = game_room_manager.create_room(game_mode, private)
+        if not room_id:
+            raise HTTPException(status_code=400, detail="Invalid game mode")
+        
+        room_info = game_room_manager.get_room_info(room_id)
+        return {"room_id": room_id, "room_info": room_info}
+        
+    except Exception as e:
+        logger.error(f"Error creating room: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create room")
+
+@api_router.get("/rooms/list")
+async def list_public_rooms():
+    """List all public game rooms"""
+    try:
+        rooms = game_room_manager.list_public_rooms()
+        return {"rooms": rooms}
+    except Exception as e:
+        logger.error(f"Error listing rooms: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list rooms")
+
+@api_router.post("/rooms/join/{code}")
+async def join_private_room(code: str, player_id: str, player_name: str):
+    """Join a private room by code"""
+    try:
+        room_id = game_room_manager.join_room_by_code(code)
+        if not room_id:
+            raise HTTPException(status_code=404, detail="Room not found or full")
+        
+        success = await game_room_manager.add_player_to_room(room_id, player_id, player_name)
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to join room")
+        
+        room_info = game_room_manager.get_room_info(room_id)
+        return {"room_id": room_id, "room_info": room_info}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error joining private room: {e}")
+        raise HTTPException(status_code=500, detail="Failed to join room")
+
+@api_router.get("/rooms/{room_id}/info")
+async def get_room_info(room_id: str):
+    """Get information about a specific room"""
+    try:
+        room_info = game_room_manager.get_room_info(room_id)
+        if not room_info:
+            raise HTTPException(status_code=404, detail="Room not found")
+        return room_info
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting room info: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get room info")
+
+# WebSocket endpoint for real-time game communication
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    """WebSocket endpoint for real-time game communication"""
+    client = None
+    try:
+        # Connect client
+        client = await websocket_manager.connect_client(websocket, client_id)
+        logger.info(f"WebSocket client {client_id} connected")
+        
+        # Message handling loop
+        while True:
+            try:
+                # Check rate limiting
+                if not websocket_manager.is_message_allowed(client_id):
+                    logger.warning(f"Rate limit exceeded for client {client_id}")
+                    await asyncio.sleep(1)  # Throttle the client
+                    continue
+                
+                # Receive message
+                message = await client.receive_message()
+                if not message:
+                    continue
+                
+                # Handle different message types
+                if message.type == 'join':
+                    await handle_join_message(client, message)
+                elif message.type == 'input':
+                    await handle_input_message(client, message)
+                elif message.type == 'action':
+                    await handle_action_message(client, message)
+                elif message.type == 'chat':
+                    await handle_chat_message(client, message)
+                else:
+                    logger.warning(f"Unknown message type: {message.type}")
+                    
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"Error handling message from {client_id}: {e}")
+                # Send error message to client
+                try:
+                    error_msg = {
+                        "type": "error",
+                        "timestamp": time.time(),
+                        "message": "Message processing failed"
+                    }
+                    await websocket.send_json(error_msg)
+                except:
+                    break  # Connection likely closed
+                    
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket client {client_id} disconnected")
+    except Exception as e:
+        logger.error(f"WebSocket error for client {client_id}: {e}")
+    finally:
+        # Clean up
+        if client:
+            websocket_manager.disconnect_client(client_id)
+            if client.player_id:
+                game_room_manager.remove_player_from_room(client.player_id)
+
+# WebSocket message handlers
+async def handle_join_message(client: WebSocketGameClient, message):
+    """Handle player joining a game"""
+    try:
+        # Find or create room
+        room_id = game_room_manager.find_available_room(message.game_mode)
+        if not room_id:
+            raise Exception("No rooms available")
+        
+        # Add player to room
+        success = await game_room_manager.add_player_to_room(
+            room_id, message.player_id, message.player_name
+        )
+        
+        if success:
+            client.player_id = message.player_id
+            client.game_id = room_id
+            client.is_authenticated = True
+            
+            logger.info(f"Player {message.player_name} joined room {room_id}")
+        else:
+            raise Exception("Failed to join room")
+            
+    except Exception as e:
+        logger.error(f"Error handling join message: {e}")
+        error_msg = {
+            "type": "error",
+            "timestamp": time.time(),
+            "message": f"Failed to join game: {str(e)}"
+        }
+        await client.websocket.send_json(error_msg)
+
+async def handle_input_message(client: WebSocketGameClient, message):
+    """Handle player input"""
+    if not client.is_authenticated or not client.player_id:
+        return
+    
+    try:
+        game_room_manager.handle_player_input(
+            client.player_id, message.dir_x, message.dir_y
+        )
+    except Exception as e:
+        logger.error(f"Error handling input from {client.player_id}: {e}")
+
+async def handle_action_message(client: WebSocketGameClient, message):
+    """Handle player actions (split, eject, respawn)"""
+    if not client.is_authenticated or not client.player_id:
+        return
+    
+    try:
+        success = await game_room_manager.handle_player_action(
+            client.player_id, message.action
+        )
+        
+        # Send action result back to client
+        result_msg = {
+            "type": "action_result",
+            "timestamp": time.time(),
+            "action": message.action,
+            "success": success
+        }
+        await client.websocket.send_json(result_msg)
+        
+    except Exception as e:
+        logger.error(f"Error handling action from {client.player_id}: {e}")
+
+async def handle_chat_message(client: WebSocketGameClient, message):
+    """Handle chat messages"""
+    if not client.is_authenticated or not client.player_id or not client.game_id:
+        return
+    
+    try:
+        # Basic chat message validation and sanitization
+        chat_text = message.message.strip()[:200]  # Limit length
+        if not chat_text:
+            return
+        
+        # Broadcast chat to room
+        from websocket_protocol import ChatBroadcastMessage
+        chat_msg = ChatBroadcastMessage(
+            type="chat",
+            timestamp=time.time(),
+            player_name=client.player_id,  # TODO: Get actual player name
+            message=chat_text
+        )
+        
+        await websocket_manager.broadcast_to_game(
+            client.game_id, chat_msg, exclude_client=client.client_id
+        )
+        
+    except Exception as e:
+        logger.error(f"Error handling chat from {client.player_id}: {e}")
+
+# Health and metrics endpoints
+@api_router.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": time.time(),
+        "version": "2.0.0"
+    }
+
+@api_router.get("/metrics")
+async def get_metrics():
+    """Prometheus-style metrics endpoint"""
+    try:
+        room_stats = game_room_manager.get_manager_stats()
+        ws_stats = websocket_manager.get_manager_stats()
+        
+        metrics = {
+            "game_rooms_active": room_stats['active_rooms'],
+            "game_rooms_total_created": room_stats['rooms_created'],
+            "game_rooms_total_closed": room_stats['rooms_closed'],
+            "players_active": room_stats['total_players'],
+            "websocket_connections_active": ws_stats['active_connections'],
+            "websocket_connections_total": ws_stats['connections'],
+            "websocket_disconnections_total": ws_stats['disconnections'],
+            "websocket_messages_processed_total": ws_stats['messages_processed'],
+            "game_ticks_total": room_stats['total_ticks'],
+            "game_tick_duration_avg": room_stats['avg_tick_time']
+        }
+        
+        return metrics
+        
+    except Exception as e:
+        logger.error(f"Error getting metrics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get metrics")
 
 # Include router in main app
 app.include_router(api_router)
