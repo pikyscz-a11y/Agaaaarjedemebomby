@@ -2,17 +2,17 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Vezmi package*.json ze složky backend (protože context je kořen repa)
-COPY backend/package*.json ./
+# z backend/ kontextu zkopíruj manifesty
+COPY package*.json ./
 
-# Instalace prod závislostí
+# nainstaluj prod závislosti
 RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
 
-# Zbytek zdrojáků backendu
-COPY backend/ .
+# zbytek zdrojáků backendu
+COPY . .
 
 ENV NODE_ENV=production
 EXPOSE 8080
 
-# Očekává script "start" v package.json (ve složce backend)
+# očekává "start" script v package.json
 CMD ["npm", "start"]
