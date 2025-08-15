@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agar.io MVP</title>
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-form h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 1rem;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .toggle-link {
+            text-align: center;
+            color: #666;
+        }
+
+        .toggle-link button {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: inherit;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+
+        .dashboard {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .dashboard-header {
+            background: #667eea;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            width: auto;
+            margin: 0;
+        }
+
+        .rooms-section {
+            padding: 2rem;
+        }
+
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .room-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 1rem;
+            transition: all 0.3s;
+        }
+
+        .room-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .room-card h3 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .room-card p {
+            color: #666;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Auth Form -->
+        <div id="authForm" class="container">
+            <div class="auth-form">
+                <h2 id="authTitle">Login to Agar.io MVP</h2>
+                <div id="message"></div>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" required>
+                    </div>
+                    <button type="submit" class="btn" id="authBtn">Login</button>
+                </form>
+                <div class="toggle-link">
+                    <span id="toggleText">Don't have an account?</span>
+                    <button type="button" id="toggleMode">Register</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard hidden">
+            <header class="dashboard-header">
+                <h1>Agar.io MVP</h1>
+                <div class="user-info">
+                    <span id="welcomeText">Welcome!</span>
+                    <span id="balanceText">Balance: $0.00 USDT</span>
+                    <button class="btn btn-small btn-secondary" onclick="showDepositModal()">Deposit USDT</button>
+                    <button class="btn btn-small" onclick="logout()">Logout</button>
+                </div>
+            </header>
+            <main class="rooms-section">
+                <h2>Available Rooms</h2>
+                <div id="roomsGrid" class="rooms-grid">
+                    <!-- Rooms will be loaded here -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let isLoggedIn = false;
+        let authMode = 'login';
+        let user = null;
+        let token = localStorage.getItem('token');
+
+        // API Base URL
+        const API_BASE = 'http://localhost:8000/api';
+
+        // Helper function for API calls
+        async function apiCall(endpoint, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers
+            });
+
+            return response.json();
+        }
+
+        // Show message
+        function showMessage(text, type = 'success') {
+            const messageEl = document.getElementById('message');
+            messageEl.innerHTML = `<div class="${type}">${text}</div>`;
+            setTimeout(() => {
+                messageEl.innerHTML = '';
+            }, 5000);
+        }
+
+        // Toggle auth mode
+        function toggleAuthMode() {
+            authMode = authMode === 'login' ? 'register' : 'login';
+            updateAuthForm();
+        }
+
+        // Update auth form
+        function updateAuthForm() {
+            const title = document.getElementById('authTitle');
+            const btn = document.getElementById('authBtn');
+            const toggleText = document.getElementById('toggleText');
+            const toggleBtn = document.getElementById('toggleMode');
+
+            if (authMode === 'login') {
+                title.textContent = 'Login to Agar.io MVP';
+                btn.textContent = 'Login';
+                toggleText.textContent = "Don't have an account?";
+                toggleBtn.textContent = 'Register';
+            } else {
+                title.textContent = 'Register for Agar.io MVP';
+                btn.textContent = 'Register';
+                toggleText.textContent = 'Already have an account?';
+                toggleBtn.textContent = 'Login';
+            }
+        }
+
+        // Handle auth form submission
+        async function handleAuth(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                if (authMode === 'register') {
+                    await apiCall('/auth/register', {
+                        method: 'POST',
+                        body: JSON.stringify({ username, password })
+                    });
+                    showMessage('Registration successful! Please login.');
+                    authMode = 'login';
+                    updateAuthForm();
+                    return;
+                }
+
+                const result = await apiCall('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (result.access_token) {
+                    token = result.access_token;
+                    localStorage.setItem('token', token);
+                    user = result.user;
+                    await loadProfile();
+                    showDashboard();
+                } else {
+                    showMessage('Login failed. Please try again.', 'error');
+                }
+            } catch (error) {
+                console.error('Auth error:', error);
+                showMessage('Authentication failed. Please try again.', 'error');
+            }
+        }
+
+        // Load user profile
+        async function loadProfile() {
+            try {
+                const profile = await apiCall('/user/profile');
+                user = profile;
+                updateUserInfo();
+            } catch (error) {
+                console.error('Failed to load profile:', error);
+            }
+        }
+
+        // Update user info in dashboard
+        function updateUserInfo() {
+            if (user) {
+                document.getElementById('welcomeText').textContent = `Welcome, ${user.username}!`;
+                document.getElementById('balanceText').textContent = `Balance: $${(user.balance / 100).toFixed(2)} USDT`;
+            }
+        }
+
+        // Load rooms
+        async function loadRooms() {
+            try {
+                const response = await apiCall('/rooms');
+                const roomsGrid = document.getElementById('roomsGrid');
+                
+                roomsGrid.innerHTML = response.rooms.map(room => `
+                    <div class="room-card">
+                        <h3>${room.name}</h3>
+                        <p>Mode: ${room.mode}</p>
+                        <p>Entry Fee: $${(room.entry_fee / 100).toFixed(2)} USDT</p>
+                        <p>Players: ${room.current_players}/${room.max_players}</p>
+                        <button class="btn" onclick="joinRoom('${room.id}')" 
+                                ${room.current_players >= room.max_players ? 'disabled' : ''}>
+                            ${room.current_players >= room.max_players ? 'Room Full' : 'Join Room'}
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load rooms:', error);
+            }
+        }
+
+        // Join room
+        async function joinRoom(roomId) {
+            try {
+                await apiCall('/rooms/join', {
+                    method: 'POST',
+                    body: JSON.stringify({ room_id: roomId })
+                });
+                alert('Joined room successfully!');
+                await loadProfile();
+                await loadRooms();
+            } catch (error) {
+                console.error('Failed to join room:', error);
+                alert('Failed to join room. Please check your balance.');
+            }
+        }
+
+        // Show deposit modal (simplified)
+        function showDepositModal() {
+            const amount = prompt('Enter deposit amount in USD:', '10');
+            if (amount && parseFloat(amount) > 0) {
+                createDepositInvoice(parseFloat(amount));
+            }
+        }
+
+        // Create deposit invoice
+        async function createDepositInvoice(amount) {
+            try {
+                const result = await apiCall('/payments/deposit', {
+                    method: 'POST',
+                    body: JSON.stringify({ amount_usd: amount })
+                });
+                
+                if (result.invoice_url) {
+                    window.open(result.invoice_url, '_blank');
+                    alert('Deposit invoice created! Check the new tab.');
+                } else {
+                    alert('Demo: Invoice would be created for $' + amount + ' USDT');
+                }
+            } catch (error) {
+                console.error('Failed to create deposit invoice:', error);
+                alert('Failed to create deposit invoice. Please try again.');
+            }
+        }
+
+        // Show dashboard
+        function showDashboard() {
+            document.getElementById('authForm').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            loadRooms();
+        }
+
+        // Show auth form
+        function showAuthForm() {
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('authForm').classList.remove('hidden');
+        }
+
+        // Logout
+        function logout() {
+            token = null;
+            user = null;
+            localStorage.removeItem('token');
+            showAuthForm();
+        }
+
+        // Initialize app
+        async function init() {
+            // Check if user is already logged in
+            if (token) {
+                try {
+                    await loadProfile();
+                    showDashboard();
+                } catch (error) {
+                    // Token invalid, clear it
+                    logout();
+                }
+            }
+
+            // Set up event listeners
+            document.getElementById('loginForm').addEventListener('submit', handleAuth);
+            document.getElementById('toggleMode').addEventListener('click', toggleAuthMode);
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
