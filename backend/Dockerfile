@@ -1,14 +1,11 @@
 FROM node:20-alpine
 
 WORKDIR /app
-
-# Zkopíruj celý obsah složky backend
+# Zkopíruj celý projekt (stačí, nemáme žádné závislosti)
 COPY . .
-
-# Viditelný otisk do logu, ať víš, že se používá TENTO Dockerfile
-RUN echo "USING DOCKERFILE WITHOUT NPM (no COPY package*.json, no npm install)"
 
 ENV NODE_ENV=production
 EXPOSE 8080
 
-CMD ["node","backend/server.js"]
+# Spusť náš server
+CMD ["node", "backend/server.js"]
