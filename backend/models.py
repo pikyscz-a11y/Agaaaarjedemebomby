@@ -15,7 +15,7 @@ class PlayerLogin(BaseModel):
 
 class PlayerProfile(BaseModel):
     display_name: str = Field(..., min_length=1, max_length=20)
-    name_color: str = Field(default="#4CAF50", regex=r"^#[0-9A-Fa-f]{6}$")
+    name_color: str = Field(default="#4CAF50", pattern=r"^#[0-9A-Fa-f]{6}$")
     avatar_url: Optional[str] = None
 
 class PlayerStats(BaseModel):
