@@ -1,8 +1,8 @@
 app = "moneyagario-api"
 
 [build]
-dockerfile = "backend/Dockerfile"
-context = "backend"
+Dockerfile = "backend/Dockerfile"
+context = "."
 
 [http_service]
 internal_port = 8080
