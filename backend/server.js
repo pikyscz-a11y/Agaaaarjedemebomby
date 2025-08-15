@@ -1,6 +1,4 @@
-// Minimalní HTTP server bez závislostí
 const http = require('http');
-
 const port = process.env.PORT || 8080;
 
 const server = http.createServer((_req, res) => {
