@@ -112,5 +112,4 @@ class NOWPaymentsAPI:
 
 # Import time at the top
 import time
-
 nowpayments = NOWPaymentsAPI()
