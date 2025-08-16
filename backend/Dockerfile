@@ -1,4 +1,4 @@
-FROM node:20-alpine
+Z uzlu: 20-alpine
 
 WORKDIR /app
 # Zkopíruj celý projekt (stačí, nemáme žádné závislosti)
