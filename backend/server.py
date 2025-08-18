@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # Import our modules
 from models import *
-from database import database
+from memory_database import database  # Use in-memory database instead of MongoDB
 from game_manager import game_manager
 from utils import *
 
@@ -70,10 +70,13 @@ async def register_player(player_data: PlayerCreate):
             return existing_player  # Return existing player instead of error
         
         # Create new player
-        player = Player(name=sanitized_name, email=player_data.email)
-        created_player = await database.create_player(player)
+        player_dict = {
+            "name": sanitized_name,
+            "email": player_data.email
+        }
+        created_player = await database.create_player(player_dict)
         
-        logger.info(f"New player registered: {created_player.name}")
+        logger.info(f"New player registered: {created_player['name']}")
         return created_player
         
     except Exception as e:
