@@ -13,7 +13,7 @@ from typing import Dict, List, Any
 from datetime import datetime
 
 # Get backend URL from environment
-BACKEND_URL = "https://7f3909c1-62d1-4ad8-9c01-1975ec06f459.preview.emergentagent.com"
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
 API_BASE = f"{BACKEND_URL}/api"
 
 class FinalCleanupTester:

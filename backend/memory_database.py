@@ -31,19 +31,21 @@ class InMemoryDatabase:
         """Initialize with some sample shop items and data"""
         sample_shop_items = [
             {
-                "_id": str(uuid.uuid4()),
+                "id": str(uuid.uuid4()),  # Use 'id' for consistency
                 "name": "Speed Boost",
                 "category": "powerup",
                 "price": 50,
+                "currency": "virtual",  # Add currency field
                 "description": "Increase speed by 20% for 30 seconds",
                 "rarity": "common",
                 "isAvailable": True
             },
             {
-                "_id": str(uuid.uuid4()),
+                "id": str(uuid.uuid4()),  # Use 'id' for consistency
                 "name": "Gold Skin",
                 "category": "skin",
                 "price": 200,
+                "currency": "virtual",  # Add currency field
                 "description": "Shiny gold appearance",
                 "rarity": "rare",
                 "isAvailable": True
@@ -51,13 +53,13 @@ class InMemoryDatabase:
         ]
         
         for item in sample_shop_items:
-            self.shop_items[item["_id"]] = item
+            self.shop_items[item["id"]] = item
     
     # Player operations
     async def create_player(self, player_data: dict) -> dict:
         player_id = str(uuid.uuid4())
         player = {
-            "_id": player_id,
+            "id": player_id,  # Use 'id' instead of '_id' for consistency with models
             "name": player_data.get("name"),
             "email": player_data.get("email"),
             "virtualMoney": 250,
@@ -102,7 +104,7 @@ class InMemoryDatabase:
     async def create_game(self, game_data: dict) -> dict:
         game_id = str(uuid.uuid4())
         game = {
-            "_id": game_id,
+            "id": game_id,  # Use 'id' for consistency
             "gameMode": game_data.get("gameMode", "classic"),
             "players": [],
             "food": [],
@@ -130,7 +132,7 @@ class InMemoryDatabase:
     async def create_transaction(self, transaction_data: dict) -> dict:
         transaction_id = str(uuid.uuid4())
         transaction = {
-            "_id": transaction_id,
+            "id": transaction_id,  # Use 'id' for consistency
             "playerId": transaction_data.get("playerId"),
             "type": transaction_data.get("type"),
             "amount": transaction_data.get("amount"),
@@ -148,8 +150,17 @@ class InMemoryDatabase:
         ]
     
     # Shop operations
-    async def get_shop_items(self) -> List[dict]:
-        return [item for item in self.shop_items.values() if item.get("isAvailable", True)]
+    async def get_shop_items(self, category: str = None, currency: str = None) -> List[dict]:
+        """Get shop items, optionally filtered by category and currency"""
+        items = [item for item in self.shop_items.values() if item.get("isAvailable", True)]
+        
+        # Apply filters if provided
+        if category:
+            items = [item for item in items if item.get("category") == category]
+        if currency:
+            items = [item for item in items if item.get("currency", "virtual") == currency]
+        
+        return items
     
     async def get_shop_item(self, item_id: str) -> Optional[dict]:
         return self.shop_items.get(item_id)
@@ -158,7 +169,7 @@ class InMemoryDatabase:
     async def add_to_inventory(self, player_id: str, item_id: str) -> dict:
         inventory_id = str(uuid.uuid4())
         inventory_item = {
-            "_id": inventory_id,
+            "id": inventory_id,  # Use 'id' for consistency
             "playerId": player_id,
             "itemId": item_id,
             "quantity": 1,

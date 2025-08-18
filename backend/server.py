@@ -113,10 +113,10 @@ async def create_game(game_data: GameCreate):
         
         # Find or create game
         game = await game_manager.find_or_create_game(
-            game_data.gameMode, game_data.playerId, player.name
+            game_data.gameMode, game_data.playerId, player["name"]
         )
         
-        logger.info(f"Player {player.name} joined game {game.id}")
+        logger.info(f"Player {player['name']} joined game {game.id}")
         return game
         
     except Exception as e:
@@ -195,14 +195,14 @@ async def add_money(payment_data: PaymentRequest):
         await database.create_transaction(transaction)
         
         # Update player balance
-        new_real_money = player.realMoney + payment_data.amount
-        new_total_money = player.virtualMoney + new_real_money
+        new_real_money = player["realMoney"] + payment_data.amount
+        new_total_money = player["virtualMoney"] + new_real_money
         
         await database.update_player(payment_data.playerId, {
             "realMoney": new_real_money
         })
         
-        logger.info(f"Payment processed: ${payment_data.amount} for player {player.name}")
+        logger.info(f"Payment processed: ${payment_data.amount} for player {player['name']}")
         
         return PaymentResponse(
             success=True,
@@ -227,7 +227,7 @@ async def withdraw_money(withdrawal_data: WithdrawalRequest):
             raise HTTPException(status_code=404, detail="Player not found")
         
         # Check sufficient balance
-        if player.virtualMoney < withdrawal_data.amount:
+        if player["virtualMoney"] < withdrawal_data.amount:
             raise HTTPException(status_code=400, detail="Insufficient virtual money balance")
         
         # Simulate withdrawal processing
@@ -248,15 +248,15 @@ async def withdraw_money(withdrawal_data: WithdrawalRequest):
         await database.create_transaction(transaction)
         
         # Update player balance
-        new_virtual_money = player.virtualMoney - withdrawal_data.amount
-        new_real_money = player.realMoney + net_amount
+        new_virtual_money = player["virtualMoney"] - withdrawal_data.amount
+        new_real_money = player["realMoney"] + net_amount
         
         await database.update_player(withdrawal_data.playerId, {
             "virtualMoney": new_virtual_money,
             "realMoney": new_real_money
         })
         
-        logger.info(f"Withdrawal processed: ${withdrawal_data.amount} for player {player.name}")
+        logger.info(f"Withdrawal processed: ${withdrawal_data.amount} for player {player['name']}")
         
         return WithdrawalResponse(
             success=True,
@@ -338,7 +338,7 @@ async def get_shop_items(category: str = None, currency: str = None):
         await database.initialize_shop_items()
         
         items = await database.get_shop_items(category, currency)
-        return {"items": [item.dict() for item in items]}
+        return {"items": items}  # items are already dictionaries
     except Exception as e:
         logger.error(f"Error getting shop items: {e}")
         raise HTTPException(status_code=500, detail="Failed to get shop items")
@@ -356,18 +356,18 @@ async def purchase_shop_item(purchase_data: ShopPurchaseRequest):
         if not item:
             raise HTTPException(status_code=404, detail="Item not found")
         
-        total_cost = item.price * purchase_data.quantity
+        total_cost = item["price"] * purchase_data.quantity
         
         # Check if player has enough money
-        if item.currency == "virtual":
-            if player.virtualMoney < total_cost:
+        if item.get("currency", "virtual") == "virtual":
+            if player["virtualMoney"] < total_cost:
                 raise HTTPException(status_code=400, detail="Insufficient virtual money")
-            new_balance = player.virtualMoney - total_cost
+            new_balance = player["virtualMoney"] - total_cost
             await database.update_player(purchase_data.playerId, {"virtualMoney": new_balance})
         else:  # real money
-            if player.realMoney < total_cost:
+            if player["realMoney"] < total_cost:
                 raise HTTPException(status_code=400, detail="Insufficient real money")
-            new_balance = player.realMoney - total_cost
+            new_balance = player["realMoney"] - total_cost
             await database.update_player(purchase_data.playerId, {"realMoney": new_balance})
         
         # Add item to player's inventory
@@ -389,14 +389,14 @@ async def purchase_shop_item(purchase_data: ShopPurchaseRequest):
         )
         await database.create_transaction(transaction)
         
-        logger.info(f"Shop purchase: {item.name} for player {player.name}")
+        logger.info(f"Shop purchase: {item.name} for player {player['name']}")
         
         return ShopPurchaseResponse(
             success=True,
             transactionId=transaction.transactionId,
             item=item,
             newBalance=new_balance,
-            message=f"Successfully purchased {item.name}"
+            message=f"Successfully purchased {item['name']}"
         )
         
     except HTTPException:
@@ -410,7 +410,7 @@ async def get_player_inventory(player_id: str):
     """Get player's inventory"""
     try:
         inventory = await database.get_player_inventory(player_id)
-        return {"inventory": [item.dict() for item in inventory]}
+        return {"inventory": inventory}  # inventory items are already dictionaries
     except Exception as e:
         logger.error(f"Error getting player inventory: {e}")
         raise HTTPException(status_code=500, detail="Failed to get inventory")
