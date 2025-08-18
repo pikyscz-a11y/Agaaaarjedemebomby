@@ -91,6 +91,13 @@ class InMemoryDatabase:
             return True
         return False
     
+    async def update_player(self, player_id: str, updates: dict) -> bool:
+        """Update any player fields"""
+        if player_id in self.players:
+            self.players[player_id].update(updates)
+            return True
+        return False
+    
     async def get_leaderboard(self, limit: int = 10) -> List[dict]:
         # Sort players by best score
         sorted_players = sorted(
@@ -161,6 +168,11 @@ class InMemoryDatabase:
             items = [item for item in items if item.get("currency", "virtual") == currency]
         
         return items
+    
+    async def initialize_shop_items(self):
+        """Initialize shop items if not already done (no-op since we init in __init__)"""
+        # Shop items are already initialized in _init_sample_data
+        pass
     
     async def get_shop_item(self, item_id: str) -> Optional[dict]:
         return self.shop_items.get(item_id)

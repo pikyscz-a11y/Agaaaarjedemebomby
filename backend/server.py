@@ -192,7 +192,7 @@ async def add_money(payment_data: PaymentRequest):
             amount=payment_data.amount,
             transactionId=generate_transaction_id()
         )
-        await database.create_transaction(transaction)
+        await database.create_transaction(transaction.model_dump())
         
         # Update player balance
         new_real_money = player["realMoney"] + payment_data.amount
@@ -245,7 +245,7 @@ async def withdraw_money(withdrawal_data: WithdrawalRequest):
             amount=withdrawal_data.amount,
             transactionId=generate_transaction_id()
         )
-        await database.create_transaction(transaction)
+        await database.create_transaction(transaction.model_dump())
         
         # Update player balance
         new_virtual_money = player["virtualMoney"] - withdrawal_data.amount
@@ -387,9 +387,9 @@ async def purchase_shop_item(purchase_data: ShopPurchaseRequest):
             amount=-total_cost,  # Negative because it's a purchase
             transactionId=generate_transaction_id()
         )
-        await database.create_transaction(transaction)
+        await database.create_transaction(transaction.model_dump())
         
-        logger.info(f"Shop purchase: {item.name} for player {player['name']}")
+        logger.info(f"Shop purchase: {item['name']} for player {player['name']}")
         
         return ShopPurchaseResponse(
             success=True,
